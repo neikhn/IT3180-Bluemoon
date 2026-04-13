@@ -3,7 +3,7 @@
     "rewrites": [
         {
             "source": "/(.*)",
-            "destination": "/frontend/dist/$1"
+            "destination": "/"
         }
     ],
     "builds": [
