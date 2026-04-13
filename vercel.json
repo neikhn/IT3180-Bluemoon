@@ -1,0 +1,18 @@
+{
+    "public": true,
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "destination": "/frontend/dist/$1"
+        }
+    ],
+    "builds": [
+        {
+            "src": "frontend/package.json",
+            "use": "@vercel/static-build",
+            "config": {
+                "distDir": "dist"
+            }
+        }
+    ]
+}
