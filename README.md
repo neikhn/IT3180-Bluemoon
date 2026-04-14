@@ -40,12 +40,7 @@ Dự án có cấu trúc tách biệt 2 mảng Front-Back. Vui lòng mở 2 cử
    ```bash
    pip install -r requirements.txt
    ```
-3. Khởi tạo Cơ sở Dữ liệu mẫu (Seed Mock Data) lên bảng MongoDB:
-   ```bash
-   python seed.py
-   ```
-   *(Đảm bảo trong code `db_config.py` đã điền đúng `MONGO_URI` Atlas của dự án)*
-4. Chạy Máy chủ API:
+3. Chạy Máy chủ API:
    ```bash
    uvicorn main:app --reload
    ```
@@ -72,7 +67,7 @@ Dự án có cấu trúc tách biệt 2 mảng Front-Back. Vui lòng mở 2 cử
 
 ## 🔑 Đăng Nhập Hệ Thống
 
-Ứng dụng hiện đang được gắn cấu hình `Mock Auth` (Đăng nhập không nối CSDL) để tiện lợi cho việc Test UI UX ngay lập tức. 
+Ứng dụng hiện đang được gắn cấu hình `Mock Auth` (Đăng nhập không nối CSDL) để tiện lợi cho việc Test UI UX ngay lập tức - và vì sprint 1 chưa yêu cầu Authentication. 
 
 *   Mở trình duyệt truy cập: `http://localhost:5173/login`
 *   **Vào luồng Quản Lý:** Điền `admin` vào ô Username (Bỏ trống Password). Bạn sẽ được Routing vào Admin Dashboard.
