@@ -4,3 +4,4 @@ motor
 beanie
 pydantic
 pydantic-settings
+email-validator
