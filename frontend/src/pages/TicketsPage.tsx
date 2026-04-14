@@ -4,8 +4,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
+import { CheckCircle2, Clock, Inbox } from "lucide-react";
 
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<any[]>([]);
@@ -52,6 +53,13 @@ export default function TicketsPage() {
     }
   };
 
+  const updateStatus = async (id: string, newStatus: string) => {
+    try {
+      await api.patch(`/tickets/${id}/status`, { status: newStatus });
+      fetchData();
+    } catch (e) { console.error(e); }
+  };
+
   const getAuthorName = (id: string) => {
     const r = residents.find(r => r._id === id);
     return r ? r.full_name : "Unknown Resident";
@@ -95,7 +103,10 @@ export default function TicketsPage() {
                       <TableCell className="font-medium truncate max-w-[200px]">{t.title}</TableCell>
                       <TableCell>{getAuthorName(t.resident_id)}</TableCell>
                       <TableCell>
-                        <Badge variant={t.status === 'open' ? "destructive" : t.status === 'processing' ? "secondary" : "outline"}>
+                        <Badge variant={t.status === 'open' ? "destructive" : t.status === 'processing' ? "secondary" : "default"} className="flex gap-1 w-fit">
+                          {t.status === 'open' && <Inbox className="w-3 h-3" />}
+                          {t.status === 'processing' && <Clock className="w-3 h-3" />}
+                          {t.status === 'closed' && <CheckCircle2 className="w-3 h-3" />}
                           {t.status}
                         </Badge>
                       </TableCell>
@@ -113,12 +124,19 @@ export default function TicketsPage() {
 
       {/* Dialog View Ticket Details */}
       <Dialog open={!!selectedTicket} onOpenChange={(o) => (!o && setSelectedTicket(null))}>
-        <DialogContent className="sm:max-w-xl max-h-[80vh] flex flex-col overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>Ticket {selectedTicket?.ticket_code}</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-xl max-h-[80vh] flex flex-col overflow-hidden p-0">
+          <div className="p-6 pb-2">
+            <DialogHeader className="flex flex-row items-center justify-between">
+              <DialogTitle>Ticket {selectedTicket?.ticket_code}</DialogTitle>
+              {selectedTicket?.status !== 'closed' && (
+                <Button variant="outline" size="sm" className="text-green-600 border-green-200 hover:bg-green-50" onClick={() => updateStatus(selectedTicket._id, 'closed')}>
+                  <CheckCircle2 className="w-4 h-4 mr-1" /> Close Ticket
+                </Button>
+              )}
+            </DialogHeader>
+          </div>
           
-          <div className="flex flex-col gap-4 overflow-y-auto flex-1 pr-6 pb-2 mt-4">
+          <div className="flex flex-col gap-4 overflow-y-auto flex-1 px-6 pb-2">
             <div>
               <div className="flex items-center gap-2 mb-2">
                  <Badge variant="secondary">{selectedTicket?.category}</Badge>
@@ -142,8 +160,8 @@ export default function TicketsPage() {
             </div>
           </div>
           
-          {selectedTicket?.status !== 'closed' && (
-            <div className="pt-4 border-t flex gap-2 shrink-0">
+          {selectedTicket?.status !== 'closed' ? (
+            <div className="p-4 border-t flex gap-2 shrink-0 bg-muted/20">
               <Input 
                 value={replyText} 
                 onChange={(e) => setReplyText(e.target.value)} 
@@ -151,6 +169,10 @@ export default function TicketsPage() {
                 onKeyDown={(e) => e.key === 'Enter' && handleReply()}
               />
               <Button onClick={handleReply} disabled={!replyText}>Send Reply</Button>
+            </div>
+          ) : (
+            <div className="p-4 border-t text-center text-sm text-muted-foreground bg-green-50/50">
+               ✅ This ticket has been marked as resolved.
             </div>
           )}
         </DialogContent>

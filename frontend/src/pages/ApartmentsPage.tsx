@@ -10,7 +10,12 @@ import {
 } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Plus } from "lucide-react";
 
 export default function ApartmentsPage() {
   const [apartments, setApartments] = useState([]);
@@ -20,26 +25,37 @@ export default function ApartmentsPage() {
   // Dialog state
   const [selectedApt, setSelectedApt] = useState<any>(null);
   const [aptVehicles, setAptVehicles] = useState<any[]>([]);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  // Form state
+  const [newApt, setNewApt] = useState({
+    apartment_number: "",
+    block: "",
+    floor: 0,
+    area_sqm: 0,
+    apartment_type: "standard",
+    status: "available"
+  });
+
+  const fetchApts = async () => {
+    try {
+      const res = await api.get('/apartments');
+      setApartments(res.data);
+      setError(null);
+    } catch (e: any) {
+      console.error(e);
+      setError("Kết nối Backend thất bại (Máy chủ tắt hoặc lỗi mạng).");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchApts() {
-      try {
-        const res = await api.get('/apartments');
-        setApartments(res.data);
-        setError(null);
-      } catch (e: any) {
-        console.error(e);
-        setError("Kết nối Backend thất bại (Máy chủ tắt hoặc lỗi mạng).");
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchApts();
   }, []);
 
   const handleAptClick = async (apt: any) => {
     setSelectedApt(apt);
-    // Fetch all vehicles and filter in-memory since backend doesn't support query by apartment_id yet
     try {
       const res = await api.get('/vehicles');
       setAptVehicles(res.data.filter((v: any) => v.apartment_id === apt._id));
@@ -48,11 +64,35 @@ export default function ApartmentsPage() {
     }
   };
 
+  const handleCreateApt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/apartments', newApt);
+      setIsCreateOpen(false);
+      setNewApt({
+        apartment_number: "",
+        block: "",
+        floor: 0,
+        area_sqm: 0,
+        apartment_type: "standard",
+        status: "available"
+      });
+      fetchApts();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Lỗi khi tạo căn hộ");
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Apartments Management</h2>
-        <p className="text-muted-foreground">Manage block apartments and view their status.</p>
+      <div className="flex justify-between items-end">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Apartments Management</h2>
+          <p className="text-muted-foreground">Manage block apartments and view their status.</p>
+        </div>
+        <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2">
+          <Plus className="w-4 h-4" /> Add Apartment
+        </Button>
       </div>
 
       <Card>
@@ -109,6 +149,52 @@ export default function ApartmentsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Create Apartment Dialog */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <form onSubmit={handleCreateApt}>
+            <DialogHeader>
+              <DialogTitle>Add New Apartment</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="apt_num" className="text-right text-xs uppercase font-bold text-muted-foreground">Phòng</Label>
+                <Input id="apt_num" required className="col-span-3" value={newApt.apartment_number} onChange={e => setNewApt({...newApt, apartment_number: e.target.value})} placeholder="301" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="block" className="text-right text-xs uppercase font-bold text-muted-foreground">Block</Label>
+                <Input id="block" required className="col-span-3" value={newApt.block} onChange={e => setNewApt({...newApt, block: e.target.value})} placeholder="A" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="floor" className="text-right text-xs uppercase font-bold text-muted-foreground">Tầng</Label>
+                <Input id="floor" type="number" required className="col-span-3" value={newApt.floor} onChange={e => setNewApt({...newApt, floor: parseInt(e.target.value)})} />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="area" className="text-right text-xs uppercase font-bold text-muted-foreground">Diện tích</Label>
+                <Input id="area" type="number" required className="col-span-3" value={newApt.area_sqm} onChange={e => setNewApt({...newApt, area_sqm: parseFloat(e.target.value)})} />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right text-xs uppercase font-bold text-muted-foreground">Loại</Label>
+                <div className="col-span-3">
+                  <Select value={newApt.apartment_type} onValueChange={v => setNewApt({...newApt, apartment_type: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard</SelectItem>
+                      <SelectItem value="studio">Studio</SelectItem>
+                      <SelectItem value="duplex">Duplex</SelectItem>
+                      <SelectItem value="penthouse">Penthouse</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" className="w-full">Create Apartment</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!selectedApt} onOpenChange={(o) => !o && setSelectedApt(null)}>
         <DialogContent className="sm:max-w-xl">
