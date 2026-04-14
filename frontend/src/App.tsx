@@ -1,18 +1,50 @@
-import { Button } from "@/components/ui/button"
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import DashboardLayout from './layouts/DashboardLayout';
+import ResidentLayout from './layouts/ResidentLayout';
+import LoginPage from './pages/LoginPage';
 
-export function App() {
+// Admin Pages
+import DashboardPage from './pages/DashboardPage';
+import ApartmentsPage from './pages/ApartmentsPage';
+import ResidentsPage from './pages/ResidentsPage';
+import VehiclesPage from './pages/VehiclesPage';
+import TicketsPage from './pages/TicketsPage';
+import NotificationsPage from './pages/NotificationsPage';
+
+// Resident Pages
+import FeedPage from './pages/resident/FeedPage';
+import ResidentTicketsPage from './pages/resident/ResidentTicketsPage';
+import FeesPage from './pages/resident/FeesPage';
+
+function App() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-      </div>
-    </div>
-  )
+    <Router>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        
+        {/* Admin Router */}
+        <Route path="/dashboard" element={<DashboardLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="apartments" element={<ApartmentsPage />} />
+          <Route path="residents" element={<ResidentsPage />} />
+          <Route path="vehicles" element={<VehiclesPage />} />
+          <Route path="tickets" element={<TicketsPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+        </Route>
+
+        {/* Resident Router */}
+        <Route path="/resident" element={<ResidentLayout />}>
+          <Route index element={<Navigate to="/feed" replace />} />
+          <Route path="feed" element={<FeedPage />} />
+          <Route path="tickets" element={<ResidentTicketsPage />} />
+          <Route path="fees" element={<FeesPage />} />
+        </Route>
+
+        {/* Default logic fake Auth -> root redirects to Login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Router>
+  );
 }
 
-export default App
+export default App;

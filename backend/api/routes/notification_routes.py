@@ -30,6 +30,11 @@ async def create_notification(payload: NotificationCreate):
     await new_notif.insert()
     return new_notif
 
+@router.get("/notifications", response_model=List[Notification])
+async def get_all_notifications():
+    """Lấy danh sách tất cả thông báo (Dành cho Admin xem lịch sử)."""
+    return await Notification.find().sort("-created_at").to_list()
+
 @router.get("/notifications/my-feed", response_model=List[Notification])
 async def get_my_notifications(apartment_id: PydanticObjectId):
     """
