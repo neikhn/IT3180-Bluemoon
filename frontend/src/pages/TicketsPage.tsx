@@ -4,9 +4,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
-import { CheckCircle2, Clock, Inbox } from "lucide-react";
+import { CheckCircle2, Clock, Inbox, ShieldCheck } from "lucide-react";
 
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<any[]>([]);
@@ -14,55 +14,42 @@ export default function TicketsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [replyText, setReplyText] = useState("");
-  const ADMIN_ID = "60f7a9b0c9e77c5c8e3b2e1a"; // Mock Admin Object ID
+  const ADMIN_ID = "60f7a9b0c9e77c5c8e3b2e1a";
 
   const fetchData = async () => {
     try {
-      const [tickRes, resRes] = await Promise.all([
-        api.get('/tickets'),
-        api.get('/residents')
-      ]);
-      setTickets(tickRes.data);
-      setResidents(resRes.data);
-      if (selectedTicket) {
-        setSelectedTicket(tickRes.data.find((t: any) => t._id === selectedTicket._id));
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+      const [tickRes, resRes] = await Promise.all([api.get('/tickets'), api.get('/residents')]);
+      setTickets(tickRes.data); setResidents(resRes.data);
+      if (selectedTicket) setSelectedTicket(tickRes.data.find((t: any) => t._id === selectedTicket._id));
+    } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const handleReply = async () => {
     if (!replyText) return;
     try {
-      await api.post(`/tickets/${selectedTicket._id}/reply`, {
-        sender_role: "admin",
-        sender_id: ADMIN_ID,
-        message: replyText
-      });
-      setReplyText("");
-      fetchData(); // reload history and re-hydrate dialog
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const updateStatus = async (id: string, newStatus: string) => {
-    try {
-      await api.patch(`/tickets/${id}/status`, { status: newStatus });
-      fetchData();
+      await api.post(`/tickets/${selectedTicket._id}/reply`, { sender_role: "admin", sender_id: ADMIN_ID, message: replyText });
+      setReplyText(""); fetchData();
     } catch (e) { console.error(e); }
   };
 
-  const getAuthorName = (id: string) => {
-    const r = residents.find(r => r._id === id);
-    return r ? r.full_name : "Unknown Resident";
+  const updateStatus = async (id: string, newStatus: string) => {
+    try { await api.patch(`/tickets/${id}/status`, { status: newStatus }); fetchData(); } catch (e) { console.error(e); }
+  };
+
+  const handleApprove = async (ticketId: string) => {
+    try {
+      await api.post(`/tickets/${ticketId}/approve`);
+      fetchData();
+    } catch (err: any) { alert(err.response?.data?.detail || "Lỗi duyệt ticket."); }
+  };
+
+  const getAuthorName = (id: string) => residents.find(r => r._id === id)?.full_name || "Unknown Resident";
+
+  // Parse vehicle data for display
+  const parseVehicleData = (description: string) => {
+    try { return JSON.parse(description); } catch { return null; }
   };
 
   return (
@@ -73,10 +60,7 @@ export default function TicketsPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Ticket Log</CardTitle>
-          <CardDescription>Support requests tracked with author resolution.</CardDescription>
-        </CardHeader>
+        <CardHeader><CardTitle>Ticket Log</CardTitle><CardDescription>Support requests tracked with author resolution.</CardDescription></CardHeader>
         <CardContent>
           <div className="rounded-md border bg-card">
             <Table>
@@ -99,7 +83,11 @@ export default function TicketsPage() {
                   tickets.map((t: any) => (
                     <TableRow key={t._id} className="hover:bg-muted/30">
                       <TableCell className="font-mono text-sm text-primary">{t.ticket_code}</TableCell>
-                      <TableCell className="capitalize">{t.category}</TableCell>
+                      <TableCell>
+                        <Badge variant={t.category === "vehicle_registration" ? "default" : "secondary"} className="capitalize">
+                          {t.category === "vehicle_registration" ? "Đăng ký xe" : t.category}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="font-medium truncate max-w-[200px]">{t.title}</TableCell>
                       <TableCell>{getAuthorName(t.resident_id)}</TableCell>
                       <TableCell>
@@ -111,7 +99,7 @@ export default function TicketsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => setSelectedTicket(t)}>View Data</Button>
+                        <Button variant="outline" size="sm" onClick={() => setSelectedTicket(t)}>View</Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -128,22 +116,45 @@ export default function TicketsPage() {
           <div className="p-6 pb-2">
             <DialogHeader className="flex flex-row items-center justify-between">
               <DialogTitle>Ticket {selectedTicket?.ticket_code}</DialogTitle>
-              {selectedTicket?.status !== 'closed' && (
-                <Button variant="outline" size="sm" className="text-green-600 border-green-200 hover:bg-green-50" onClick={() => updateStatus(selectedTicket._id, 'closed')}>
-                  <CheckCircle2 className="w-4 h-4 mr-1" /> Close Ticket
-                </Button>
-              )}
+              <div className="flex gap-2">
+                {selectedTicket?.category === "vehicle_registration" && selectedTicket?.status !== 'closed' && (
+                  <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(selectedTicket._id)}>
+                    <ShieldCheck className="w-4 h-4 mr-1" /> Approve
+                  </Button>
+                )}
+                {selectedTicket?.status !== 'closed' && (
+                  <Button variant="outline" size="sm" className="text-green-600 border-green-200 hover:bg-green-50" onClick={() => updateStatus(selectedTicket._id, 'closed')}>
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> Close
+                  </Button>
+                )}
+              </div>
             </DialogHeader>
           </div>
           
           <div className="flex flex-col gap-4 overflow-y-auto flex-1 px-6 pb-2">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                 <Badge variant="secondary">{selectedTicket?.category}</Badge>
-                 <span className="text-xs text-muted-foreground">by {selectedTicket && getAuthorName(selectedTicket.resident_id)}</span>
+                <Badge variant="secondary">{selectedTicket?.category}</Badge>
+                <span className="text-xs text-muted-foreground">by {selectedTicket && getAuthorName(selectedTicket.resident_id)}</span>
               </div>
               <h3 className="font-bold text-lg">{selectedTicket?.title}</h3>
-              <p className="text-sm text-foreground bg-muted p-4 mt-3 rounded-lg border leading-relaxed">{selectedTicket?.description}</p>
+              
+              {/* If vehicle_registration, show parsed vehicle data nicely */}
+              {selectedTicket?.category === "vehicle_registration" && (() => {
+                const vd = parseVehicleData(selectedTicket.description);
+                if (!vd) return <p className="text-sm text-foreground bg-muted p-4 mt-3 rounded-lg border">{selectedTicket.description}</p>;
+                return (
+                  <div className="bg-muted p-4 mt-3 rounded-lg border space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Biển số:</span><span className="font-mono font-bold tracking-widest">{vd.license_plate}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Tên xe:</span><span className="font-medium">{vd.vehicle_name}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Loại xe:</span><Badge variant="secondary" className="capitalize">{vd.vehicle_type}</Badge></div>
+                  </div>
+                );
+              })()}
+              
+              {selectedTicket?.category !== "vehicle_registration" && (
+                <p className="text-sm text-foreground bg-muted p-4 mt-3 rounded-lg border leading-relaxed">{selectedTicket?.description}</p>
+              )}
             </div>
             
             <div className="space-y-4 mt-6">
@@ -162,18 +173,11 @@ export default function TicketsPage() {
           
           {selectedTicket?.status !== 'closed' ? (
             <div className="p-4 border-t flex gap-2 shrink-0 bg-muted/20">
-              <Input 
-                value={replyText} 
-                onChange={(e) => setReplyText(e.target.value)} 
-                placeholder="Type a response to the resident..." 
-                onKeyDown={(e) => e.key === 'Enter' && handleReply()}
-              />
+              <Input value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type a response to the resident..." onKeyDown={(e) => e.key === 'Enter' && handleReply()} />
               <Button onClick={handleReply} disabled={!replyText}>Send Reply</Button>
             </div>
           ) : (
-            <div className="p-4 border-t text-center text-sm text-muted-foreground bg-green-50/50">
-               ✅ This ticket has been marked as resolved.
-            </div>
+            <div className="p-4 border-t text-center text-sm text-muted-foreground bg-green-50/50">✅ This ticket has been marked as resolved.</div>
           )}
         </DialogContent>
       </Dialog>

@@ -14,7 +14,7 @@ import NotificationsPage from './pages/NotificationsPage';
 // Resident Pages
 import FeedPage from './pages/resident/FeedPage';
 import ResidentTicketsPage from './pages/resident/ResidentTicketsPage';
-import FeesPage from './pages/resident/FeesPage';
+import ProfilePage from './pages/resident/ProfilePage';
 
 function App() {
   return (
@@ -34,13 +34,13 @@ function App() {
 
         {/* Resident Router */}
         <Route path="/resident" element={<ResidentLayout />}>
-          <Route index element={<Navigate to="/feed" replace />} />
+          <Route index element={<Navigate to="feed" replace />} />
           <Route path="feed" element={<FeedPage />} />
           <Route path="tickets" element={<ResidentTicketsPage />} />
-          <Route path="fees" element={<FeesPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
 
-        {/* Default logic fake Auth -> root redirects to Login */}
+        {/* Default -> Login */}
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>

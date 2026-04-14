@@ -1,8 +1,9 @@
+from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 from beanie import PydanticObjectId
 from pydantic import BaseModel
-from models.notification import Notification
+from models.notification import Notification, ChangeHistory
 from models.apartment import Apartment
 
 router = APIRouter()
@@ -27,6 +28,7 @@ async def create_notification(payload: NotificationCreate):
         target_value=payload.target_value,
         created_by=payload.created_by
     )
+    new_notif.change_history.append(ChangeHistory(changes_summary="Tạo thông báo mới"))
     await new_notif.insert()
     return new_notif
 
@@ -68,3 +70,13 @@ async def mark_notification_read(notif_id: PydanticObjectId, resident_id: Pydant
         await notif.save()
         
     return {"message": "Success", "read_count": len(notif.read_by)}
+
+@router.delete("/notifications/{notif_id}", status_code=200)
+async def delete_notification(notif_id: PydanticObjectId):
+    """Xóa thông báo."""
+    notif = await Notification.get(notif_id)
+    if not notif:
+        raise HTTPException(status_code=404, detail="Thông báo không tồn tại")
+    await notif.delete()
+    return {"message": "Đã xóa thông báo thành công."}
+

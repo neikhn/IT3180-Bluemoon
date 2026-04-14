@@ -1,10 +1,9 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Home, Building2, Users, Ticket, Bell, Car } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { Separator } from '../components/ui/separator';
 
 const menuItems = [
-  { title: 'Dashboard', icon: Home, path: '/dashboard' },
+  { title: 'Dashboard', icon: Home, path: '/dashboard', exact: true },
   { title: 'Apartments', icon: Building2, path: '/dashboard/apartments' },
   { title: 'Residents', icon: Users, path: '/dashboard/residents' },
   { title: 'Vehicles', icon: Car, path: '/dashboard/vehicles' },
@@ -20,12 +19,14 @@ export default function DashboardLayout() {
       {/* Sidebar */}
       <aside className="w-64 border-r bg-muted/30 flex flex-col">
         <div className="h-16 flex items-center px-6 border-b bg-card">
-          <span className="font-bold text-xl text-primary tracking-tight">BlueMoon</span>
+          <span className="font-bold text-xl text-primary tracking-tight">BlueMoon Admin Portal</span>
         </div>
         <div className="p-4 flex-1">
           <nav className="space-y-1">
             {menuItems.map((item) => {
-              const active = location.pathname.startsWith(item.path);
+              const active = (item as any).exact
+                ? location.pathname === item.path
+                : location.pathname.startsWith(item.path);
               return (
                 <Link
                   key={item.path}
@@ -48,8 +49,7 @@ export default function DashboardLayout() {
       <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
         <header className="h-16 border-b flex items-center px-8 bg-card/95 backdrop-blur z-10 sticky top-0">
           <div className="flex-1" />
-          <div className="flex items-center gap-6">
-            <span className="text-sm font-medium text-muted-foreground">Admin Portal</span>
+          <div className="flex items-center">
             <button 
                 onClick={() => { localStorage.removeItem('role'); window.location.href = '/login'; }}
                 className="text-sm font-medium text-red-500 hover:text-red-600 transition"

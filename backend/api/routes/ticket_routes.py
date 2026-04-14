@@ -95,3 +95,51 @@ async def update_ticket_status(ticket_id: PydanticObjectId, payload: TicketStatu
     ticket.updated_at = datetime.utcnow()
     await ticket.save()
     return ticket
+
+@router.post("/tickets/{ticket_id}/approve", response_model=Ticket)
+async def approve_ticket(ticket_id: PydanticObjectId):
+    """Admin duyệt ticket đăng ký xe → Tự động tạo Vehicle."""
+    from models.vehicle import Vehicle, ChangeHistory as VehicleHistory
+    
+    ticket = await Ticket.get(ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket không tồn tại")
+    
+    if ticket.category != "vehicle_registration":
+        raise HTTPException(status_code=400, detail="Chỉ có thể approve ticket loại đăng ký xe.")
+    
+    if ticket.status == "closed":
+        raise HTTPException(status_code=400, detail="Ticket này đã được đóng.")
+
+    # Parse vehicle info từ description (format JSON-like trong description)
+    # Ticket description chứa JSON: {"license_plate": "...", "vehicle_type": "...", "vehicle_name": "..."}
+    import json
+    try:
+        vehicle_data = json.loads(ticket.description)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Không thể đọc dữ liệu xe từ ticket. Format không hợp lệ.")
+
+    sanitized_plate = vehicle_data.get("license_plate", "").upper().replace(" ", "")
+    existing = await Vehicle.find_one({"license_plate": sanitized_plate})
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Biển số {sanitized_plate} đã được đăng ký!")
+
+    new_vehicle = Vehicle(
+        apartment_id=ticket.apartment_id,
+        resident_id=ticket.resident_id,
+        license_plate=sanitized_plate,
+        vehicle_type=vehicle_data.get("vehicle_type", "motorbike"),
+        vehicle_name=vehicle_data.get("vehicle_name", "")
+    )
+    new_vehicle.change_history.append(VehicleHistory(changes_summary=f"Tự động tạo từ Ticket {ticket.ticket_code}"))
+    await new_vehicle.insert()
+
+    ticket.status = "closed"
+    ticket.updated_at = datetime.utcnow()
+    ticket.responses.append(TicketResponse(
+        sender_role="admin",
+        sender_id=ticket.resident_id,  # placeholder
+        message=f"✅ Đã duyệt đăng ký xe {sanitized_plate} ({vehicle_data.get('vehicle_name', '')}). Xe đã được thêm vào hệ thống."
+    ))
+    await ticket.save()
+    return ticket

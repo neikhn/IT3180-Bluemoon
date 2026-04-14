@@ -8,6 +8,10 @@ from models.apartment import Apartment, MinimalResidentInfo
 
 router = APIRouter()
 
+def title_case_name(name: str) -> str:
+    """Chuẩn hóa tên: uppercase chữ đầu mỗi từ."""
+    return " ".join(word.capitalize() for word in name.strip().split())
+
 class ResidentCreate(BaseModel):
     full_name: str
     date_of_birth: datetime
@@ -27,6 +31,8 @@ class ResidentUpdate(BaseModel):
     phone_number: Optional[str] = Field(None, pattern="^0[0-9]{9}$")
     email: Optional[EmailStr] = None
     temporary_residence_status: Optional[str] = None
+    cccd_front_base64: Optional[str] = None
+    cccd_back_base64: Optional[str] = None
 
 @router.get("/residents", response_model=List[Resident])
 async def search_residents(name: Optional[str] = None, phone: Optional[str] = None):
@@ -47,8 +53,14 @@ async def create_resident(payload: ResidentCreate):
     if not apartment:
         raise HTTPException(status_code=404, detail="Căn hộ không tồn tại")
 
+    # Kiểm tra nếu relationship = owner thì phòng đã có owner chưa
+    if payload.relationship == "owner":
+        has_owner = any(r.relationship == "owner" and r.status == "living" for r in apartment.current_residents)
+        if has_owner:
+            raise HTTPException(status_code=400, detail="Căn hộ này đã có chủ hộ! Mỗi phòng chỉ được 1 owner.")
+
     new_resident = Resident(
-        full_name=payload.full_name,
+        full_name=title_case_name(payload.full_name),
         date_of_birth=payload.date_of_birth,
         identity_card=payload.identity_card,
         phone_number=payload.phone_number,
@@ -85,12 +97,49 @@ async def update_resident(resident_id: PydanticObjectId, payload: ResidentUpdate
             existing = await Resident.find_one(Resident.identity_card == update_data["identity_card"])
             if existing:
                 raise HTTPException(status_code=400, detail="CCCD này đã thuộc về người khác!")
-                
-        changed_keys = ", ".join(update_data.keys())
-        for key, value in update_data.items():
-            setattr(resident, key, value)
-            
-        resident.change_history.append(ResidentHistory(changes_summary=f"Cập nhật các trường: {changed_keys}"))
-        await resident.save()
+        
+        # Title-case tên nếu có cập nhật
+        if "full_name" in update_data:
+            update_data["full_name"] = title_case_name(update_data["full_name"])
+
+        # Chỉ log những trường THỰC SỰ thay đổi giá trị
+        actually_changed = []
+        field_labels = {
+            "full_name": "Họ tên", "phone_number": "SĐT", "email": "Email",
+            "temporary_residence_status": "Trạng thái cư trú", "identity_card": "CCCD",
+            "date_of_birth": "Ngày sinh", "cccd_front_base64": "Ảnh CCCD mặt trước",
+            "cccd_back_base64": "Ảnh CCCD mặt sau"
+        }
+        for key, new_value in update_data.items():
+            old_value = getattr(resident, key, None)
+            if old_value != new_value:
+                label = field_labels.get(key, key)
+                # Không log giá trị base64 dài
+                if "base64" in key:
+                    actually_changed.append(label)
+                else:
+                    actually_changed.append(f"{label}: '{old_value}' → '{new_value}'")
+                setattr(resident, key, new_value)
+        
+        if actually_changed:
+            now = datetime.utcnow()
+            summary = "; ".join(actually_changed)
+            resident.change_history.append(ResidentHistory(
+                changed_at=now,
+                changes_summary=summary
+            ))
+            resident.updated_at = now
+
+            # Đồng bộ tên mới vào embedded data trong Apartment
+            if "full_name" in update_data:
+                all_apartments = await Apartment.find().to_list()
+                for apt in all_apartments:
+                    for cr in apt.current_residents:
+                        if cr.resident_id == resident_id:
+                            cr.full_name = update_data["full_name"]
+                            await apt.save()
+                            break
+
+            await resident.save()
 
     return resident

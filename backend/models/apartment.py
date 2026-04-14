@@ -11,6 +11,11 @@ class MinimalResidentInfo(BaseModel):
     move_in_date: datetime = Field(default_factory=datetime.utcnow)
     status: str = "living" # 'living' hoặc 'moved_out'
 
+class ChangeHistory(BaseModel):
+    changed_at: datetime = Field(default_factory=datetime.utcnow)
+    changed_by: str = "system"
+    changes_summary: str
+
 class Apartment(Document):
     apartment_number: str
     block: str
@@ -21,6 +26,7 @@ class Apartment(Document):
     status: str = "available" # 'available', 'occupied', 'maintenance'
     
     current_residents: List[MinimalResidentInfo] = []
+    change_history: List[ChangeHistory] = []
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

@@ -2,7 +2,12 @@ from datetime import datetime
 from typing import List, Optional
 from beanie import Document
 from beanie.odm.fields import PydanticObjectId
-from pydantic import Field
+from pydantic import BaseModel, Field
+
+class ChangeHistory(BaseModel):
+    changed_at: datetime = Field(default_factory=datetime.utcnow)
+    changed_by: str = "system"
+    changes_summary: str
 
 class Notification(Document):
     title: str
@@ -16,6 +21,8 @@ class Notification(Document):
     
     # Quản lý những người đã đọc (Thống kê)
     read_by: List[PydanticObjectId] = []
+    
+    change_history: List[ChangeHistory] = []
     
     created_by: PydanticObjectId # Admin ID tạo
     created_at: datetime = Field(default_factory=datetime.utcnow)
