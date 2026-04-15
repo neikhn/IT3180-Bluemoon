@@ -27,7 +27,7 @@ import {
 } from "../components/ui/dialog"
 import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
-import { ScrollArea } from "../components/ui/scroll-area"
+
 import { extractErrorMessage } from "../lib/utils"
 import {
   Eye,
@@ -228,9 +228,7 @@ export default function TicketsPage() {
   // Admin can accept if resident requested close
   const adminCanAccept =
     isPendingClose && selectedTicket?.pending_close_by === "resident"
-  // Admin can dispute if resident requested close
-  const adminCanDispute =
-    isPendingClose && selectedTicket?.pending_close_by === "resident"
+
 
   return (
     <div className="animate-in space-y-6 duration-500 fade-in">
