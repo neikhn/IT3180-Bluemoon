@@ -277,7 +277,7 @@ export default function ApartmentsPage() {
 
   return (
     <div className="animate-in space-y-6 duration-500 fade-in">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Quản lý Căn hộ</h2>
           <p className="text-muted-foreground">
@@ -322,7 +322,7 @@ export default function ApartmentsPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="rounded-md border bg-card">
+          <div className="overflow-x-auto rounded-md border bg-card">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>

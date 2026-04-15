@@ -178,7 +178,7 @@ export default function ResidentsPage() {
 
   return (
     <div className="animate-in space-y-6 duration-500 fade-in">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Quản lý Cư dân</h2>
           <p className="text-muted-foreground">
@@ -223,7 +223,7 @@ export default function ResidentsPage() {
             </Button>
           </div>
 
-          <div className="rounded-md border bg-card/80">
+          <div className="overflow-x-auto rounded-md border bg-card/80">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
