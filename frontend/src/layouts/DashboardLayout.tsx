@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { Home, Building2, Users, Ticket, Bell, Car, LogOut } from "lucide-react"
 import { cn } from "../lib/utils"
 import { Button } from "../components/ui/button"
+import { ModeToggle } from "../components/mode-toggle"
 
 const menuItems = [
   { title: "Tổng quan", icon: Home, path: "/dashboard", exact: true },
@@ -68,7 +69,10 @@ export default function DashboardLayout() {
       <main className="flex min-h-screen flex-1 flex-col overflow-hidden">
         <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center border-b bg-card/95 px-8 backdrop-blur">
           <div className="flex-1" />
-          <span className="text-xs text-muted-foreground">Quản trị viên</span>
+          <div className="flex items-center gap-4">
+            <ModeToggle />
+            <span className="text-xs text-muted-foreground">Quản trị viên</span>
+          </div>
         </header>
         <div className="flex-1 overflow-auto bg-muted/10 p-8">
           <Outlet />

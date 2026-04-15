@@ -46,6 +46,12 @@ async def create_ticket(payload: TicketCreate):
         except:
             v_type = "motorbike"
         
+        
+        sanitized_plate = v_data.get("license_plate", "").upper().replace(" ", "")
+        existing_vehicle = await Vehicle.find_one(Vehicle.license_plate == sanitized_plate, Vehicle.status != "inactive")
+        if existing_vehicle:
+            raise HTTPException(status_code=400, detail="Biển số này đã được đăng ký trong hệ thống.")
+
         # Check existing vehicles
         active_vehicles = await Vehicle.find(
             Vehicle.apartment_id == payload.apartment_id,
@@ -165,7 +171,7 @@ async def approve_ticket(ticket_id: PydanticObjectId):
         raise HTTPException(status_code=400, detail="Không thể đọc dữ liệu phương tiện từ ticket. Format không hợp lệ.")
 
     sanitized_plate = vehicle_data.get("license_plate", "").upper().replace(" ", "")
-    existing = await Vehicle.find_one({"license_plate": sanitized_plate})
+    existing = await Vehicle.find_one(Vehicle.license_plate == sanitized_plate, Vehicle.status != "inactive")
     if existing:
         raise HTTPException(status_code=400, detail=f"Biển số {sanitized_plate} đã được đăng ký!")
 

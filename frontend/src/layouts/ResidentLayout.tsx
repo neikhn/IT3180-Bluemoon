@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { Ticket, User, Bell, LogOut } from "lucide-react"
 import { cn } from "../lib/utils"
 import { Button } from "../components/ui/button"
+import { ModeToggle } from "../components/mode-toggle"
 
 export default function ResidentLayout() {
   const location = useLocation()
@@ -25,9 +26,12 @@ export default function ResidentLayout() {
         <div className="text-lg font-bold tracking-tight text-primary">
           BlueMoon
         </div>
-        <Button variant="ghost" size="icon" onClick={handleLogout} title="Đăng xuất">
-          <LogOut className="h-5 w-5 text-muted-foreground transition-colors hover:text-red-500" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <ModeToggle />
+          <Button variant="ghost" size="icon" onClick={handleLogout} title="Đăng xuất">
+            <LogOut className="h-5 w-5 text-muted-foreground transition-colors hover:text-red-500" />
+          </Button>
+        </div>
       </header>
 
       {/* Scrollable content area — grows to fill space between header and nav */}

@@ -29,7 +29,7 @@ async def register_vehicle(payload: VehicleCreate):
     """US-7: Đăng ký xe. Max 2 ô tô / căn hộ."""
     sanitized_plate = payload.license_plate.upper().replace(" ", "")
     
-    existing_vehicle = await Vehicle.find_one({"license_plate": sanitized_plate})
+    existing_vehicle = await Vehicle.find_one(Vehicle.license_plate == sanitized_plate, Vehicle.status != "inactive")
     if existing_vehicle:
         raise HTTPException(status_code=400, detail="Biển số xe này đã được đăng ký!")
 
@@ -73,7 +73,7 @@ async def update_vehicle(vehicle_id: PydanticObjectId, payload: VehicleUpdate):
         if "license_plate" in update_data:
             update_data["license_plate"] = update_data["license_plate"].upper().replace(" ", "")
             if update_data["license_plate"] != vehicle.license_plate:
-                existing = await Vehicle.find_one({"license_plate": update_data["license_plate"]})
+                existing = await Vehicle.find_one(Vehicle.license_plate == update_data["license_plate"], Vehicle.status != "inactive")
                 if existing:
                     raise HTTPException(status_code=400, detail="Biển số này đã thuộc về xe khác!")
 
