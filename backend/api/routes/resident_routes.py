@@ -80,6 +80,11 @@ async def create_resident(payload: ResidentCreate):
         move_in_date=datetime.utcnow()
     )
     apartment.current_residents.append(resident_embed_info)
+    
+    living_count = sum(1 for cr in apartment.current_residents if cr.status == "living")
+    if living_count > 0 and apartment.status == "available":
+        apartment.status = "occupied"
+        
     await apartment.save()
     
     return new_resident

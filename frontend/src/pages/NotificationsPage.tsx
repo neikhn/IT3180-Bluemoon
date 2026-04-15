@@ -1,129 +1,258 @@
-import { useState, useEffect } from "react";
-import { api } from "../lib/axios";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { Button } from "../components/ui/button";
-import { Label } from "../components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Badge } from "../components/ui/badge";
-import { Trash2 } from "lucide-react";
+import { useState, useEffect } from "react"
+import { toast } from "sonner"
+import { api } from "../lib/axios"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "../components/ui/card"
+import { Input } from "../components/ui/input"
+import { Button } from "../components/ui/button"
+import { Label } from "../components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select"
+import { Badge } from "../components/ui/badge"
+import { Trash2, Search } from "lucide-react"
+
+const SCOPE_LABELS: Record<string, string> = {
+  all: "Toàn bộ",
+  block: "Block",
+  floor: "Tầng",
+  apartment: "Căn hộ",
+}
 
 export default function NotificationsPage() {
-  const [notifs, setNotifs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [scope, setScope] = useState("all");
-  const [targetVal, setTargetVal] = useState("");
-  const ADMIN_ID = "60f7a9b0c9e77c5c8e3b2e1a"; // Mock Admin ID
+  const [notifs, setNotifs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+
+  const [title, setTitle] = useState("")
+  const [content, setContent] = useState("")
+  const [scope, setScope] = useState("all")
+  const [targetVal, setTargetVal] = useState("")
+  const ADMIN_ID = "60f7a9b0c9e77c5c8e3b2e1a"
 
   const fetchNotifs = async () => {
-    try { const res = await api.get('/notifications'); setNotifs(res.data); } 
-    catch (e) { console.error(e); } finally { setLoading(false); }
-  };
+    try {
+      const res = await api.get("/notifications")
+      setNotifs(res.data)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  useEffect(() => { fetchNotifs(); }, []);
+  useEffect(() => {
+    fetchNotifs()
+  }, [])
 
   const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
     try {
-      await api.post('/notifications', {
-        title, content, scope_type: scope,
-        target_value: scope !== 'all' ? targetVal : null,
-        created_by: ADMIN_ID
-      });
-      setTitle(""); setContent(""); setTargetVal(""); setScope("all");
-      fetchNotifs();
-    } catch (e) { console.error(e); alert("Failed to send notification."); }
-  };
+      await api.post("/notifications", {
+        title,
+        content,
+        scope_type: scope,
+        target_value: scope !== "all" ? targetVal : null,
+        created_by: ADMIN_ID,
+      })
+      toast.success("Đã gửi thông báo thành công!")
+      setTitle("")
+      setContent("")
+      setTargetVal("")
+      setScope("all")
+      fetchNotifs()
+    } catch (e) {
+      console.error(e)
+      toast.error("Gửi thông báo thất bại.")
+    }
+  }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Bạn có chắc muốn xóa thông báo này?")) return;
-    try { await api.delete(`/notifications/${id}`); fetchNotifs(); }
-    catch (e) { console.error(e); alert("Lỗi xóa thông báo."); }
-  };
+    if (!confirm("Bạn có chắc muốn xóa thông báo này?")) return
+    try {
+      await api.delete(`/notifications/${id}`)
+      toast.success("Đã xóa thông báo.")
+      fetchNotifs()
+    } catch (e) {
+      console.error(e)
+      toast.error("Lỗi xóa thông báo.")
+    }
+  }
+
+  const filtered = notifs.filter(
+    (n) =>
+      n.title?.toLowerCase().includes(search.toLowerCase()) ||
+      n.content?.toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
-    <div className="animate-in fade-in duration-500 grid xl:grid-cols-2 gap-6 items-start">
-      
-      {/* Cột trái: Form */}
+    <div className="grid animate-in items-start gap-6 duration-500 fade-in xl:grid-cols-2">
+      {/* Left: Form */}
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Broadcast Message</h2>
-          <p className="text-muted-foreground">Send an alert or news to residents across blocks.</p>
+          <h2 className="text-2xl font-bold tracking-tight">Gửi Thông báo</h2>
+          <p className="text-muted-foreground">
+            Phát thông báo đến cư dân theo phạm vi tùy chọn.
+          </p>
         </div>
         <Card className="border-primary/20 shadow-sm">
-          <CardHeader><CardTitle>New Notification</CardTitle><CardDescription>Compose and dispatch an official announcement directly to Resident apps.</CardDescription></CardHeader>
+          <CardHeader>
+            <CardTitle>Soạn thông báo mới</CardTitle>
+            <CardDescription>
+              Thông báo sẽ được gửi trực tiếp đến ứng dụng của cư dân.
+            </CardDescription>
+          </CardHeader>
           <CardContent>
             <form onSubmit={handleSend} className="space-y-5">
-              <div className="space-y-2"><Label>Announcement Title</Label><Input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="E.g. Routine Elevator Maintenance" /></div>
+              <div className="space-y-2">
+                <Label>Tiêu đề thông báo</Label>
+                <Input
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="VD: Bảo trì thang máy định kỳ"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Scope Level</Label>
+                  <Label>Phạm vi gửi</Label>
                   <Select value={scope} onValueChange={setScope}>
-                    <SelectTrigger><SelectValue placeholder="To everyone" /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn phạm vi" />
+                    </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Every Resident</SelectItem>
-                      <SelectItem value="block">Specific Block</SelectItem>
-                      <SelectItem value="floor">Specific Floor</SelectItem>
-                      <SelectItem value="apartment">Specific Apartment</SelectItem>
+                      <SelectItem value="all">Toàn bộ cư dân</SelectItem>
+                      <SelectItem value="block">Theo Block</SelectItem>
+                      <SelectItem value="floor">Theo Tầng</SelectItem>
+                      <SelectItem value="apartment">Theo Căn hộ</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                {scope !== 'all' && (
-                  <div className="space-y-2 animate-in slide-in-from-left-2">
-                    <Label>Target Value</Label>
-                    <Input required value={targetVal} onChange={(e) => setTargetVal(e.target.value)} placeholder={`E.g. ${scope === 'block' ? 'A' : '12'}`} />
+                {scope !== "all" && (
+                  <div className="animate-in space-y-2 slide-in-from-left-2">
+                    <Label>Giá trị mục tiêu</Label>
+                    <Input
+                      required
+                      value={targetVal}
+                      onChange={(e) => setTargetVal(e.target.value)}
+                      placeholder={`VD: ${scope === "block" ? "A" : "12"}`}
+                    />
                   </div>
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Message Body</Label>
-                <textarea required className="flex min-h-[140px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Dear residents..." />
+                <Label>Nội dung thông báo</Label>
+                <textarea
+                  required
+                  className="flex min-h-[140px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Kính gửi cư dân..."
+                />
               </div>
-              <Button type="submit" className="w-full font-bold">Dispatch Notification</Button>
+              <Button type="submit" className="w-full font-bold">
+                Gửi thông báo
+              </Button>
             </form>
           </CardContent>
         </Card>
       </div>
 
-      {/* Cột phải: Lịch sử */}
+      {/* Right: History */}
       <div className="space-y-6">
         <div className="pt-2 xl:pt-0">
-          <h2 className="text-2xl font-bold tracking-tight">Sent History</h2>
-          <p className="text-muted-foreground">Previously dispatched notifications.</p>
+          <h2 className="text-2xl font-bold tracking-tight">Lịch sử gửi</h2>
+          <p className="text-muted-foreground">
+            Danh sách thông báo đã phát trước đó.
+          </p>
         </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Tìm kiếm thông báo..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
         <Card className="flex flex-col border-muted">
           <CardContent className="flex-1 overflow-auto p-0">
             <Table>
-              <TableHeader className="bg-muted/10 sticky top-0 backdrop-blur z-10">
+              <TableHeader className="sticky top-0 z-10 bg-muted/10 backdrop-blur">
                 <TableRow>
-                  <TableHead>Details</TableHead>
-                  <TableHead className="text-right w-[60px]"></TableHead>
+                  <TableHead>Chi tiết</TableHead>
+                  <TableHead className="w-[60px] text-right"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={2} className="text-center h-24">Loading history...</TableCell></TableRow>
-                ) : notifs.length === 0 ? (
-                  <TableRow><TableCell colSpan={2} className="text-center h-24 text-muted-foreground">Empty History</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={2} className="h-24 text-center">
+                      Đang tải lịch sử...
+                    </TableCell>
+                  </TableRow>
+                ) : filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={2}
+                      className="h-24 text-center text-muted-foreground"
+                    >
+                      {search ? "Không tìm thấy thông báo." : "Chưa có thông báo nào."}
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  notifs.map((n: any) => (
+                  filtered.map((n: any) => (
                     <TableRow key={n._id} className="hover:bg-muted/30">
                       <TableCell>
-                        <div className="font-semibold text-sm mb-1 line-clamp-1">{n.title}</div>
-                        <div className="flex gap-2 items-center">
-                          <Badge variant={n.scope_type === 'all' ? "secondary" : "default"} className="text-[10px] px-1.5 py-0">
-                            {n.scope_type} {n.target_value && `(${n.target_value})`}
+                        <div className="mb-1 line-clamp-1 text-sm font-semibold">
+                          {n.title}
+                        </div>
+                        <div className="mb-1 line-clamp-1 text-xs text-muted-foreground">
+                          {n.content}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant={
+                              n.scope_type === "all" ? "secondary" : "default"
+                            }
+                            className="px-1.5 py-0 text-[10px]"
+                          >
+                            {SCOPE_LABELS[n.scope_type] || n.scope_type}{" "}
+                            {n.target_value && `(${n.target_value})`}
                           </Badge>
-                          <span className="text-[10px] text-muted-foreground">{new Date(n.created_at).toLocaleString('vi-VN')}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(n.created_at).toLocaleString("vi-VN")}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" onClick={() => handleDelete(n._id)}>
-                          <Trash2 className="w-4 h-4" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-600"
+                          onClick={() => handleDelete(n._id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -135,5 +264,5 @@ export default function NotificationsPage() {
         </Card>
       </div>
     </div>
-  );
+  )
 }

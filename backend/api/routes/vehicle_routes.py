@@ -36,11 +36,19 @@ async def register_vehicle(payload: VehicleCreate):
     if payload.vehicle_type == "car":
         car_count = await Vehicle.find(
             Vehicle.apartment_id == payload.apartment_id,
-            Vehicle.vehicle_type == "car"
+            Vehicle.vehicle_type == "car",
+            Vehicle.status != "inactive"
         ).count()
-        if car_count >= 2:
-            raise HTTPException(status_code=400, detail="Chỉ được phép đăng ký tối đa 2 ô tô cho mỗi căn hộ.")
-            
+        if car_count >= 1:
+            raise HTTPException(status_code=400, detail="Chỉ được phép đăng ký tối đa 1 ô tô cho mỗi căn hộ.")
+    elif payload.vehicle_type == "motorbike":
+        moto_count = await Vehicle.find(
+            Vehicle.apartment_id == payload.apartment_id,
+            Vehicle.vehicle_type == "motorbike",
+            Vehicle.status != "inactive"
+        ).count()
+        if moto_count >= 2:
+            raise HTTPException(status_code=400, detail="Chỉ được phép đăng ký tối đa 2 xe máy cho mỗi căn hộ.")
     new_vehicle = Vehicle(
         apartment_id=payload.apartment_id,
         resident_id=payload.resident_id,

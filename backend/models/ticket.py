@@ -17,8 +17,10 @@ class Ticket(Document):
     title: str
     description: str
     images_base64: List[str] = [] # max 3 hình (theo user story)
+    status: str = "open" # 'open', 'processing', 'pending_close', 'closed', 'rejected'
     
-    status: str = "open" # 'open', 'processing', 'closed'
+    pending_close_by: Optional[str] = None # 'admin' | 'resident'
+    pending_close_at: Optional[datetime] = None
     
     resident_id: PydanticObjectId
     apartment_id: PydanticObjectId

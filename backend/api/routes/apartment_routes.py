@@ -104,3 +104,90 @@ async def delete_apartment(apartment_id: PydanticObjectId):
 
     await apartment.delete()
     return {"message": f"Đã xóa căn hộ {apartment.apartment_number} thành công."}
+
+class AddResidentPayload(BaseModel):
+    resident_id: PydanticObjectId
+    relationship: str = "tenant"
+
+class RemoveResidentPayload(BaseModel):
+    resident_id: PydanticObjectId
+
+@router.patch("/apartments/{apartment_id}/add-resident", response_model=Apartment)
+async def add_resident_to_apartment(apartment_id: PydanticObjectId, payload: AddResidentPayload):
+    """Thêm cư dân đã tồn tại vào danh sách của một căn hộ."""
+    from models.resident import Resident
+    from models.apartment import MinimalResidentInfo
+
+    apartment = await Apartment.get(apartment_id)
+    if not apartment:
+        raise HTTPException(status_code=404, detail="Căn hộ không tồn tại")
+
+    resident = await Resident.get(payload.resident_id)
+    if not resident:
+        raise HTTPException(status_code=404, detail="Cư dân không tồn tại")
+
+    # Kiểm tra cư dân đã trong phòng chưa
+    already_living = any(
+        cr.resident_id == payload.resident_id and cr.status == "living"
+        for cr in apartment.current_residents
+    )
+    if already_living:
+        raise HTTPException(status_code=400, detail="Cư dân này đã đang sống trong căn hộ.")
+
+    # Kiểm tra owner duy nhất
+    if payload.relationship == "owner":
+        has_owner = any(
+            cr.relationship == "owner" and cr.status == "living"
+            for cr in apartment.current_residents
+        )
+        if has_owner:
+            raise HTTPException(status_code=400, detail="Căn hộ này đã có chủ hộ! Mỗi phòng chỉ được 1 owner.")
+
+    apartment.current_residents.append(MinimalResidentInfo(
+        resident_id=payload.resident_id,
+        full_name=resident.full_name,
+        relationship=payload.relationship,
+        status="living",
+        move_in_date=datetime.utcnow()
+    ))
+    apartment.change_history.append(ChangeHistory(
+        changes_summary=f"Thêm cư dân: {resident.full_name} ({payload.relationship})"
+    ))
+    
+    living_count = sum(1 for cr in apartment.current_residents if cr.status == "living")
+    if living_count > 0 and apartment.status == "available":
+        apartment.status = "occupied"
+        
+    apartment.updated_at = datetime.utcnow()
+    await apartment.save()
+    return apartment
+
+@router.patch("/apartments/{apartment_id}/remove-resident", response_model=Apartment)
+async def remove_resident_from_apartment(apartment_id: PydanticObjectId, payload: RemoveResidentPayload):
+    """Chuyển cư dân ra khỏi căn hộ (soft move_out, không xóa hồ sơ)."""
+    apartment = await Apartment.get(apartment_id)
+    if not apartment:
+        raise HTTPException(status_code=404, detail="Căn hộ không tồn tại")
+
+    moved_name = None
+    for cr in apartment.current_residents:
+        if cr.resident_id == payload.resident_id and cr.status == "living":
+            cr.status = "moved_out"
+            moved_name = cr.full_name
+            break
+
+    if not moved_name:
+        raise HTTPException(status_code=404, detail="Cư dân không có trong danh sách của căn hộ.")
+
+    apartment.change_history.append(ChangeHistory(
+        changes_summary=f"Cư dân chuyển đi: {moved_name}"
+    ))
+    
+    living_count = sum(1 for cr in apartment.current_residents if cr.status == "living")
+    if living_count == 0 and apartment.status == "occupied":
+        apartment.status = "available"
+        
+    apartment.updated_at = datetime.utcnow()
+    await apartment.save()
+    return apartment
+

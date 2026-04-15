@@ -1,27 +1,33 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import DashboardLayout from './layouts/DashboardLayout';
-import ResidentLayout from './layouts/ResidentLayout';
-import LoginPage from './pages/LoginPage';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom"
+import DashboardLayout from "./layouts/DashboardLayout"
+import ResidentLayout from "./layouts/ResidentLayout"
+import LoginPage from "./pages/LoginPage"
+import { Toaster } from "sonner"
 
 // Admin Pages
-import DashboardPage from './pages/DashboardPage';
-import ApartmentsPage from './pages/ApartmentsPage';
-import ResidentsPage from './pages/ResidentsPage';
-import VehiclesPage from './pages/VehiclesPage';
-import TicketsPage from './pages/TicketsPage';
-import NotificationsPage from './pages/NotificationsPage';
+import DashboardPage from "./pages/DashboardPage"
+import ApartmentsPage from "./pages/ApartmentsPage"
+import ResidentsPage from "./pages/ResidentsPage"
+import VehiclesPage from "./pages/VehiclesPage"
+import TicketsPage from "./pages/TicketsPage"
+import NotificationsPage from "./pages/NotificationsPage"
 
 // Resident Pages
-import FeedPage from './pages/resident/FeedPage';
-import ResidentTicketsPage from './pages/resident/ResidentTicketsPage';
-import ProfilePage from './pages/resident/ProfilePage';
+import FeedPage from "./pages/resident/FeedPage"
+import ResidentTicketsPage from "./pages/resident/ResidentTicketsPage"
+import ProfilePage from "./pages/resident/ProfilePage"
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        
+
         {/* Admin Router */}
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<DashboardPage />} />
@@ -43,8 +49,9 @@ function App() {
         {/* Default -> Login */}
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
+      <Toaster position="top-right" richColors closeButton />
     </Router>
-  );
+  )
 }
 
-export default App;
+export default App
