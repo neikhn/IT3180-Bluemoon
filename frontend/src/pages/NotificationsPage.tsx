@@ -27,7 +27,14 @@ import {
   SelectValue,
 } from "../components/ui/select"
 import { Badge } from "../components/ui/badge"
-import { Trash2, Search } from "lucide-react"
+import { Trash2, Search, Maximize2 } from "lucide-react"
+import { getStoredUser } from "../lib/auth"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog"
 
 const SCOPE_LABELS: Record<string, string> = {
   all: "Toàn bộ",
@@ -45,7 +52,8 @@ export default function NotificationsPage() {
   const [content, setContent] = useState("")
   const [scope, setScope] = useState("all")
   const [targetVal, setTargetVal] = useState("")
-  const ADMIN_ID = "60f7a9b0c9e77c5c8e3b2e1a"
+  const [selectedNotif, setSelectedNotif] = useState<any>(null)
+  const ADMIN_ID = getStoredUser()?.id
 
   const fetchNotifs = async () => {
     try {
@@ -227,7 +235,7 @@ export default function NotificationsPage() {
                         <div className="mb-1 line-clamp-1 text-sm font-semibold">
                           {n.title}
                         </div>
-                        <div className="mb-1 line-clamp-1 text-xs text-muted-foreground">
+                        <div className="mb-1 line-clamp-1 text-xs text-muted-foreground break-words whitespace-pre-wrap">
                           {n.content}
                         </div>
                         <div className="flex items-center gap-2">
@@ -246,14 +254,24 @@ export default function NotificationsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-red-500 hover:text-red-600"
-                          onClick={() => handleDelete(n._id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                            onClick={() => setSelectedNotif(n)}
+                          >
+                            <Maximize2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => handleDelete(n._id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -263,6 +281,30 @@ export default function NotificationsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!selectedNotif} onOpenChange={(o) => !o && setSelectedNotif(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant="secondary">
+                {selectedNotif && (SCOPE_LABELS[selectedNotif.scope_type] || selectedNotif.scope_type)}
+                {selectedNotif?.target_value && ` (${selectedNotif.target_value})`}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {selectedNotif && new Date(selectedNotif.created_at).toLocaleString("vi-VN")}
+              </span>
+            </div>
+            <DialogTitle>{selectedNotif?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 text-sm leading-relaxed whitespace-pre-wrap break-words border rounded-lg p-4 bg-muted/20">
+            {selectedNotif?.content}
+          </div>
+          <div className="flex justify-end mt-4">
+            <Button variant="outline" onClick={() => setSelectedNotif(null)}>Đóng</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

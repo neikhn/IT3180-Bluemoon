@@ -4,9 +4,16 @@ from beanie import Document
 from beanie.odm.fields import PydanticObjectId
 from pydantic import BaseModel, Field, EmailStr
 
+from enum import Enum
+
+class ResidentStatus(str, Enum):
+    REGISTERED = "registered"
+    TEMPORARY_ABSENT = "temporary_absent"
+    EXPIRED = "expired"
+
 class ResidentHistory(BaseModel):
     changed_at: datetime = Field(default_factory=datetime.utcnow)
-    changed_by: str = "system" # Tạm mock
+    changed_by: str = "system"
     changes_summary: str
 
 class Resident(Document):
@@ -19,7 +26,8 @@ class Resident(Document):
     # Regex 10 số, bắt đầu bằng 0
     phone_number: str = Field(..., pattern="^0[0-9]{9}$")
     email: Optional[EmailStr] = None
-    temporary_residence_status: str = "registered"
+    temporary_residence_status: ResidentStatus = ResidentStatus.REGISTERED
+    status: str = "active" # 'active', 'inactive'
     
     # GridFS là phướng án tối ưu cho file > 16MB. 
     # Voi ảnh nén < 5MB (Acceptance Criteria), lưu base64 là giải pháp dễ triển khai.

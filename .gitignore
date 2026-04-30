@@ -44,3 +44,7 @@ env/
 *.sln
 *.sw?
 Thumbs.db
+
+.claude
+Notion_doc
+checkpoint.md

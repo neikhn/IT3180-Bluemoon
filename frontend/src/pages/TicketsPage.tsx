@@ -13,11 +13,10 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
-  CardDescription,
 } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
+import { Skeleton } from "../components/ui/skeleton"
 import {
   Dialog,
   DialogContent,
@@ -27,8 +26,8 @@ import {
 } from "../components/ui/dialog"
 import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
-
 import { extractErrorMessage } from "../lib/utils"
+import { getStoredUser } from "../lib/auth"
 import {
   Eye,
   CheckCircle2,
@@ -51,10 +50,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: "Khác",
 }
 
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; variant: any; icon: any }
-> = {
+const STATUS_CONFIG: Record<string, { label: string; variant: any; icon: any }> = {
   open: { label: "Mới", variant: "destructive", icon: Inbox },
   processing: { label: "Đang xử lý", variant: "secondary", icon: Clock },
   pending_close: { label: "Chờ đóng", variant: "outline", icon: MinusCircle },
@@ -69,20 +65,17 @@ export default function TicketsPage() {
   const [selectedTicket, setSelectedTicket] = useState<any>(null)
   const [replyText, setReplyText] = useState("")
 
-  // Reject dialog state
   const [isRejectOpen, setIsRejectOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState("")
 
-  // Dispute dialog state
   const [isDisputeOpen, setIsDisputeOpen] = useState(false)
   const [disputeReason, setDisputeReason] = useState("")
 
-  // Search + filter
   const [search, setSearch] = useState("")
   const [showClosed, setShowClosed] = useState(true)
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
 
-  const ADMIN_ID = "60f7a9b0c9e77c5c8e3b2e1a"
+  const ADMIN_ID = getStoredUser()?.id
 
   const fetchData = async () => {
     try {
@@ -93,9 +86,7 @@ export default function TicketsPage() {
       setTickets(tickRes.data)
       setResidents(resRes.data)
       if (selectedTicket) {
-        const refreshed = tickRes.data.find(
-          (t: any) => t._id === selectedTicket._id
-        )
+        const refreshed = tickRes.data.find((t: any) => t._id === selectedTicket._id)
         if (refreshed) setSelectedTicket(refreshed)
       }
     } catch {
@@ -105,9 +96,7 @@ export default function TicketsPage() {
     }
   }
 
-  useEffect(() => {
-    fetchData()
-  }, [])
+  useEffect(() => { fetchData() }, [])
 
   const getAuthorName = (id: string) =>
     residents.find((r) => r._id === id)?.full_name || "Cư dân"
@@ -155,14 +144,9 @@ export default function TicketsPage() {
   }
 
   const handleReject = async () => {
-    if (!rejectReason.trim()) {
-      toast.error("Vui lòng nhập lý do từ chối.")
-      return
-    }
+    if (!rejectReason.trim()) { toast.error("Vui lòng nhập lý do từ chối."); return }
     try {
-      await api.post(`/tickets/${selectedTicket._id}/reject`, {
-        reason: rejectReason,
-      })
+      await api.post(`/tickets/${selectedTicket._id}/reject`, { reason: rejectReason })
       toast.success("Đã từ chối yêu cầu.")
       setIsRejectOpen(false)
       setRejectReason("")
@@ -174,9 +158,7 @@ export default function TicketsPage() {
 
   const handleRequestClose = async () => {
     try {
-      await api.post(`/tickets/${selectedTicket._id}/request-close`, {
-        requested_by: "admin",
-      })
+      await api.post(`/tickets/${selectedTicket._id}/request-close`, { requested_by: "admin" })
       toast.success("Đã gửi yêu cầu đóng ticket.")
       fetchData()
     } catch (err: any) {
@@ -195,15 +177,9 @@ export default function TicketsPage() {
   }
 
   const handleDisputeClose = async () => {
-    if (!disputeReason.trim()) {
-      toast.error("Vui lòng nhập lý do phản đối.")
-      return
-    }
+    if (!disputeReason.trim()) { toast.error("Vui lòng nhập lý do phản đối."); return }
     try {
-      await api.post(`/tickets/${selectedTicket._id}/dispute-close`, {
-        disputed_by: "admin",
-        reason: disputeReason,
-      })
+      await api.post(`/tickets/${selectedTicket._id}/dispute-close`, { disputed_by: "admin", reason: disputeReason })
       toast.success("Đã phản đối yêu cầu đóng.")
       setIsDisputeOpen(false)
       setDisputeReason("")
@@ -214,45 +190,37 @@ export default function TicketsPage() {
   }
 
   const parseVehicleData = (description: string) => {
-    try {
-      return JSON.parse(description)
-    } catch {
-      return null
-    }
+    try { return JSON.parse(description) } catch { return null }
   }
 
   const isVehicleTicket = selectedTicket?.category === "vehicle_registration"
   const isPendingClose = selectedTicket?.status === "pending_close"
-  const isActive =
-    selectedTicket && !["closed", "rejected"].includes(selectedTicket.status)
-  // Admin can accept if resident requested close
-  const adminCanAccept =
-    isPendingClose && selectedTicket?.pending_close_by === "resident"
-
+  const isActive = selectedTicket && !["closed", "rejected"].includes(selectedTicket.status)
+  const adminCanAccept = isPendingClose && selectedTicket?.pending_close_by === "resident"
 
   return (
-    <div className="animate-in space-y-6 duration-500 fade-in">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Quản lý Ticket Hỗ trợ</h2>
-        <p className="text-muted-foreground">
-          Quản lý phản ánh và yêu cầu của cư dân.
-        </p>
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Ticket hỗ trợ</h2>
+          <p className="text-muted-foreground">Quản lý phản ánh và yêu cầu của cư dân.</p>
+        </div>
+        {loading ? (
+          <Skeleton className="h-9 w-24 rounded-lg" />
+        ) : (
+          <Badge variant="secondary" className="px-3 py-1.5 text-sm font-medium">
+            {filteredTickets.length} ticket
+          </Badge>
+        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Danh sách Ticket</CardTitle>
-          <CardDescription>
-            Tất cả yêu cầu từ cư dân, theo thứ tự mới nhất.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Search + filter toolbar */}
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent pb-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                className="pl-9"
+                className="pl-9 bg-background/80"
                 placeholder="Tìm theo mã, tiêu đề, người gửi..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -261,180 +229,134 @@ export default function TicketsPage() {
             <Button
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-2 transition-all"
               onClick={() => setShowClosed(v => !v)}
             >
               {showClosed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               {showClosed ? "Ẩn đã đóng" : "Hiện đã đóng"}
             </Button>
           </div>
-
-          <div className="overflow-x-auto rounded-md border bg-card">
-            <Table>
-              <TableHeader className="bg-muted/50">
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="pl-5">Mã Ticket</TableHead>
+                <TableHead>Phân loại</TableHead>
+                <TableHead className="w-[30%]">Tiêu đề</TableHead>
+                <TableHead>Người gửi</TableHead>
+                <TableHead>Trạng thái</TableHead>
+                <TableHead className="pr-5 text-right">
+                  <Button variant="ghost" size="sm" className="gap-1" onClick={() => setSortDir(d => d === "desc" ? "asc" : "desc")}>
+                    Ngày gửi <ArrowUpDown className="h-3 w-3" />
+                  </Button>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                [...Array(5)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="pl-5"><Skeleton className="h-4 w-20 rounded" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-full max-w-[180px] rounded" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24 rounded" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                    <TableCell className="pr-5"><Skeleton className="ml-auto h-8 w-8 rounded-lg" /></TableCell>
+                  </TableRow>
+                ))
+              ) : filteredTickets.length === 0 ? (
                 <TableRow>
-                  <TableHead>Mã Ticket</TableHead>
-                  <TableHead>Phân loại</TableHead>
-                  <TableHead className="w-[30%]">Tiêu đề</TableHead>
-                  <TableHead>Người gửi</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead className="text-right">
-                    <Button variant="ghost" size="sm" className="gap-1" onClick={() => setSortDir(d => d === "desc" ? "asc" : "desc")}>
-                      Ngày gửi <ArrowUpDown className="h-3 w-3" />
-                    </Button>
-                  </TableHead>
+                  <TableCell colSpan={6} className="h-32 text-center">
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <Inbox className="h-8 w-8 opacity-30" />
+                      <p className="text-sm font-medium">
+                        {search ? "Không tìm thấy ticket nào." : "Chưa có ticket nào."}
+                      </p>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="h-24 text-center text-muted-foreground"
+              ) : (
+                filteredTickets.map((t: any) => {
+                  const cfg = STATUS_CONFIG[t.status] || STATUS_CONFIG.open
+                  const Icon = cfg.icon
+                  return (
+                    <TableRow
+                      key={t._id}
+                      className="cursor-pointer transition-all hover:bg-muted/40"
+                      onClick={() => { setSelectedTicket(t); setReplyText("") }}
                     >
-                      Đang tải...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredTickets.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="h-24 text-center text-muted-foreground"
-                    >
-                      {search ? "Không tìm thấy ticket nào." : "Chưa có ticket nào."}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredTickets.map((t: any) => {
-                    const cfg = STATUS_CONFIG[t.status] || STATUS_CONFIG.open
-                    const Icon = cfg.icon
-                    return (
-                      <TableRow key={t._id} className="hover:bg-muted/30">
-                        <TableCell className="font-mono text-sm text-primary">
-                          {t.ticket_code}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              t.category === "vehicle_registration"
-                                ? "default"
-                                : "secondary"
-                            }
-                            className="capitalize"
-                          >
+                      <TableCell className="pl-5 font-mono text-sm text-primary font-medium">
+                        {t.ticket_code}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={t.category === "vehicle_registration" ? "default" : "secondary"} className="capitalize">
                           {CATEGORY_LABELS[t.category] || t.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate font-medium">
-                          {t.title}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {getAuthorName(t.resident_id)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={cfg.variant}
-                            className="flex w-fit items-center gap-1.5"
-                          >
-                            <Icon className="h-3 w-3" />
-                            {cfg.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedTicket(t)
-                              setReplyText("")
-                            }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate">{t.title}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{getAuthorName(t.resident_id)}</TableCell>
+                      <TableCell>
+                        <Badge variant={cfg.variant} className="flex w-fit items-center gap-1.5">
+                          <Icon className="h-3 w-3" />
+                          {cfg.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="pr-5 text-right">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-primary/10">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
       {/* Ticket Detail Dialog */}
-      <Dialog
-        open={!!selectedTicket}
-        onOpenChange={(o) => !o && setSelectedTicket(null)}
-      >
+      <Dialog open={!!selectedTicket} onOpenChange={(o) => !o && setSelectedTicket(null)}>
         <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden p-0 sm:max-w-xl">
-          {/* Header */}
           <div className="shrink-0 border-b px-6 pt-5 pb-3">
             <DialogHeader>
-              <DialogTitle className="text-base font-bold">
-                {selectedTicket?.ticket_code}
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  gửi bởi{" "}
-                  {selectedTicket && getAuthorName(selectedTicket.resident_id)}
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <span className="font-mono text-primary">{selectedTicket?.ticket_code}</span>
+                <span className="text-xs font-normal text-muted-foreground">
+                  gửi bởi {selectedTicket && getAuthorName(selectedTicket.resident_id)}
                 </span>
               </DialogTitle>
             </DialogHeader>
 
-            {/* Action toolbar — below title, no overlap with X */}
             {isActive && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {isVehicleTicket ? (
-                  // Vehicle registration: only Approve + Reject
                   <>
-                    <Button
-                      size="sm"
-                      className="gap-1.5 bg-green-600 text-white hover:bg-green-700"
-                      onClick={handleApprove}
-                    >
+                    <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={handleApprove}>
                       <ShieldCheck className="h-3.5 w-3.5" /> Duyệt
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="gap-1.5"
-                      onClick={() => setIsRejectOpen(true)}
-                    >
+                    <Button size="sm" variant="destructive" className="gap-1.5" onClick={() => setIsRejectOpen(true)}>
                       <XCircle className="h-3.5 w-3.5" /> Từ chối
                     </Button>
                   </>
                 ) : isPendingClose ? (
-                  // Pending close: admin can accept or dispute (only if resident requested)
                   adminCanAccept ? (
                     <>
-                      <Button
-                        size="sm"
-                        className="gap-1.5 bg-green-600 text-white hover:bg-green-700"
-                        onClick={handleAcceptClose}
-                      >
+                      <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={handleAcceptClose}>
                         <CheckCircle2 className="h-3.5 w-3.5" /> Đồng ý đóng
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 border-amber-300 text-amber-600"
-                        onClick={() => setIsDisputeOpen(true)}
-                      >
+                      <Button size="sm" variant="outline" className="gap-1.5 border-amber-300 text-amber-600" onClick={() => setIsDisputeOpen(true)}>
                         <XCircle className="h-3.5 w-3.5" /> Phản đối
                       </Button>
                     </>
                   ) : (
                     <Badge variant="outline" className="px-3 py-1.5 text-xs">
-                      ⏳ Đã gửi yêu cầu đóng, đang chờ cư dân xác nhận
+                      ⏳ Đang chờ cư dân xác nhận đóng
                     </Badge>
                   )
                 ) : (
-                  // Normal ticket: admin can request close or reply
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5 text-muted-foreground"
-                    onClick={handleRequestClose}
-                  >
+                  <Button size="sm" variant="outline" className="gap-1.5 text-muted-foreground" onClick={handleRequestClose}>
                     <MinusCircle className="h-3.5 w-3.5" /> Yêu cầu đóng
                   </Button>
                 )}
@@ -442,24 +364,17 @@ export default function TicketsPage() {
             )}
           </div>
 
-          {/* Body: description + responses */}
           <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-4">
-            {/* Description */}
             <div>
               <div className="mb-2 flex items-center gap-2">
                 <Badge variant="secondary" className="text-xs capitalize">
-                  {selectedTicket?.category === "vehicle_registration"
-                    ? "Đăng ký phương tiện"
-                    : selectedTicket?.category}
+                  {selectedTicket?.category === "vehicle_registration" ? "Đăng ký phương tiện" : selectedTicket?.category}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
-                  {selectedTicket &&
-                    new Date(selectedTicket.created_at).toLocaleString("vi-VN")}
+                  {selectedTicket && new Date(selectedTicket.created_at).toLocaleString("vi-VN")}
                 </span>
               </div>
-              <h3 className="mb-2 text-base font-bold">
-                {selectedTicket?.title}
-              </h3>
+              <h3 className="mb-2 text-base font-bold">{selectedTicket?.title}</h3>
 
               {isVehicleTicket ? (
                 (() => {
@@ -468,69 +383,45 @@ export default function TicketsPage() {
                     <div className="space-y-2 rounded-lg border bg-muted/50 p-4 text-sm">
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">Biển số</span>
-                        <span className="font-mono font-bold tracking-widest">
-                          {vd.license_plate}
-                        </span>
+                        <span className="font-mono font-bold tracking-widest">{vd.license_plate}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">
-                          Tên phương tiện
-                        </span>
+                        <span className="text-muted-foreground">Tên phương tiện</span>
                         <span className="font-medium">{vd.vehicle_name}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">Phân loại</span>
-                        <Badge variant="outline">
-                          {vd.vehicle_type === "car" ? "Ô tô" : "Xe máy"}
-                        </Badge>
+                        <Badge variant="outline">{vd.vehicle_type === "car" ? "Ô tô" : "Xe máy"}</Badge>
                       </div>
                     </div>
                   ) : (
-                    <p className="rounded-lg bg-muted p-4 text-sm">
-                      {selectedTicket?.description}
-                    </p>
+                    <p className="rounded-lg bg-muted p-4 text-sm">{selectedTicket?.description}</p>
                   )
                 })()
               ) : (
-                <p className="rounded-lg border bg-muted/50 p-4 text-sm leading-relaxed">
-                  {selectedTicket?.description}
-                </p>
+                <p className="rounded-lg border bg-muted/50 p-4 text-sm leading-relaxed">{selectedTicket?.description}</p>
               )}
             </div>
 
-            {/* Chat history */}
             <div className="space-y-3">
-              <p className="text-xs font-bold tracking-widest text-muted-foreground uppercase">
-                Lịch sử hội thoại
-              </p>
+              <p className="text-xs font-bold tracking-widest text-muted-foreground uppercase">Lịch sử hội thoại</p>
               {selectedTicket?.responses?.length === 0 && (
-                <p className="text-sm text-muted-foreground italic">
-                  Chưa có phản hồi nào.
-                </p>
+                <p className="text-sm text-muted-foreground italic">Chưa có phản hồi nào.</p>
               )}
               {selectedTicket?.responses?.map((r: any, idx: number) => {
                 const isSystem = r.sender_role === "system"
                 const isAdmin = r.sender_role === "admin"
                 return (
-                  <div
-                    key={idx}
-                    className={`flex ${isAdmin ? "justify-end" : isSystem ? "justify-center" : "justify-start"}`}
-                  >
+                  <div key={idx} className={`flex ${isAdmin ? "justify-end" : isSystem ? "justify-center" : "justify-start"}`}>
                     {isSystem ? (
-                      <div className="max-w-[90%] rounded-full border bg-muted px-3 py-1.5 text-center text-xs text-muted-foreground">
-                        {r.message}
-                      </div>
+                      <div className="max-w-[90%] rounded-full border bg-muted px-3 py-1.5 text-center text-xs text-muted-foreground">{r.message}</div>
                     ) : (
-                      <div
-                        className={`max-w-[80%] rounded-lg p-3 text-sm ${isAdmin ? "rounded-tr-none bg-primary text-primary-foreground" : "rounded-tl-none border bg-muted"}`}
-                      >
+                      <div className={`max-w-[80%] rounded-xl p-3 text-sm ${isAdmin ? "rounded-tr-2xl bg-primary text-primary-foreground" : "rounded-tl-2xl border bg-muted"}`}>
                         <div className="mb-1 text-[10px] font-bold tracking-wider uppercase opacity-60">
                           {isAdmin ? "Ban quản lý" : "Cư dân"}
                         </div>
                         {r.message}
-                        <div className="mt-1 text-[10px] opacity-50">
-                          {new Date(r.created_at).toLocaleString("vi-VN")}
-                        </div>
+                        <div className="mt-1 text-[10px] opacity-50">{new Date(r.created_at).toLocaleString("vi-VN")}</div>
                       </div>
                     )}
                   </div>
@@ -539,32 +430,20 @@ export default function TicketsPage() {
             </div>
           </div>
 
-          {/* Reply box / status footer */}
           {isActive && !isPendingClose && !isVehicleTicket ? (
             <div className="flex shrink-0 gap-2 border-t bg-muted/10 p-4">
               <Input
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 placeholder="Nhập phản hồi cho cư dân..."
-                onKeyDown={(e) =>
-                  e.key === "Enter" && !e.shiftKey && handleReply()
-                }
+                className="rounded-xl"
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleReply()}
               />
-              <Button onClick={handleReply} disabled={!replyText.trim()}>
-                Gửi
-              </Button>
+              <Button onClick={handleReply} disabled={!replyText.trim()} className="rounded-xl px-4">Gửi</Button>
             </div>
           ) : !isActive ? (
-            <div
-              className={`shrink-0 border-t p-3 text-center text-xs ${
-                selectedTicket?.status === "rejected"
-                  ? "bg-destructive/10 text-destructive"
-                  : "bg-green-50/50 text-muted-foreground dark:bg-green-950/20"
-              }`}
-            >
-              {selectedTicket?.status === "rejected"
-                ? "❌ Ticket này đã bị từ chối."
-                : "✅ Ticket này đã được đóng — vấn đề đã giải quyết."}
+            <div className={`shrink-0 border-t p-3 text-center text-xs ${selectedTicket?.status === "rejected" ? "bg-destructive/10 text-destructive" : "bg-muted/30 text-muted-foreground"}`}>
+              {selectedTicket?.status === "rejected" ? "❌ Ticket này đã bị từ chối." : "✅ Ticket này đã được đóng — vấn đề đã giải quyết."}
             </div>
           ) : null}
         </DialogContent>
@@ -572,83 +451,40 @@ export default function TicketsPage() {
 
       {/* Reject Dialog */}
       <Dialog open={isRejectOpen} onOpenChange={setIsRejectOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-sm rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-destructive">
-              Từ chối yêu cầu
-            </DialogTitle>
+            <DialogTitle className="text-destructive">Từ chối yêu cầu</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-3">
-            <p className="text-sm text-muted-foreground">
-              Vui lòng nêu lý do từ chối để cư dân được thông báo.
-            </p>
+            <p className="text-sm text-muted-foreground">Vui lòng nêu lý do từ chối để cư dân được thông báo.</p>
             <div className="space-y-1">
               <Label>Lý do từ chối</Label>
-              <Input
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="VD: Biển số không đúng định dạng..."
-                className={!rejectReason.trim() ? "" : ""}
-                onKeyDown={(e) => e.key === "Enter" && handleReject()}
-              />
+              <Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="VD: Biển số không đúng định dạng..." onKeyDown={(e) => e.key === "Enter" && handleReject()} />
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsRejectOpen(false)
-                setRejectReason("")
-              }}
-            >
-              Hủy
-            </Button>
-            <Button variant="destructive" onClick={handleReject}>
-              Xác nhận từ chối
-            </Button>
+            <Button variant="outline" onClick={() => { setIsRejectOpen(false); setRejectReason("") }} className="rounded-xl">Hủy</Button>
+            <Button variant="destructive" onClick={handleReject} className="rounded-xl">Xác nhận từ chối</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Dispute Close Dialog */}
+      {/* Dispute Dialog */}
       <Dialog open={isDisputeOpen} onOpenChange={setIsDisputeOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-sm rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-amber-600">
-              Phản đối đóng ticket
-            </DialogTitle>
+            <DialogTitle className="text-amber-600">Phản đối đóng ticket</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-3">
-            <p className="text-sm text-muted-foreground">
-              Nêu lý do bạn chưa đồng ý đóng ticket này. Cư dân sẽ thấy lý do
-              trong hội thoại.
-            </p>
+            <p className="text-sm text-muted-foreground">Nêu lý do bạn chưa đồng ý đóng ticket này.</p>
             <div className="space-y-1">
               <Label>Lý do phản đối</Label>
-              <Input
-                value={disputeReason}
-                onChange={(e) => setDisputeReason(e.target.value)}
-                placeholder="VD: Vấn đề vẫn chưa được giải quyết triệt để..."
-                onKeyDown={(e) => e.key === "Enter" && handleDisputeClose()}
-              />
+              <Input value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} placeholder="VD: Vấn đề vẫn chưa được giải quyết..." onKeyDown={(e) => e.key === "Enter" && handleDisputeClose()} />
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsDisputeOpen(false)
-                setDisputeReason("")
-              }}
-            >
-              Hủy
-            </Button>
-            <Button
-              className="bg-amber-600 text-white hover:bg-amber-700"
-              onClick={handleDisputeClose}
-            >
-              Gửi phản đối
-            </Button>
+            <Button variant="outline" onClick={() => { setIsDisputeOpen(false); setDisputeReason("") }} className="rounded-xl">Hủy</Button>
+            <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl" onClick={handleDisputeClose}>Gửi phản đối</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

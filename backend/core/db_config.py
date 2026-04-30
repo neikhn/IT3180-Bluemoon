@@ -25,6 +25,9 @@ async def init_db():
     from models.vehicle import Vehicle
     from models.ticket import Ticket
     from models.notification import Notification
+    from models.fee_rate import FeeRate
+    from models.invoice import Invoice
+    from models.audit_log import AuditLog
 
     await init_beanie(
         database=client[env_settings.MONGODB_DATABASE_NAME],
@@ -34,7 +37,10 @@ async def init_db():
             Apartment,
             Vehicle,
             Ticket,
-            Notification
+            Notification,
+            FeeRate,
+            Invoice,
+            AuditLog
         ]
     )
     print("MongoDB Atlas connection established and Beanie models initialized!")

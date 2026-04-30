@@ -1,74 +1,67 @@
-# 🏢 BlueMoon - Hệ sinh thái Quản lý Chung cư
+# 🏢 BlueMoon - Hệ sinh thái Quản lý Chung cư Toàn diện
 
-BlueMoon là một nền tảng quản lý khu dân cư toàn diện (Apartment Management System). Hệ thống cung cấp hai phân hệ độc lập: Một **Admin Portal** mạnh mẽ trên màn hình PC dành cho Ban Quản Lý, và một **Resident App** (giao diện Mobile-first) dành cho Cư dân tiện theo dõi thông tin.
+BlueMoon là một nền tảng quản lý khu dân cư hiện đại (Apartment Management System). Hệ thống cung cấp ba phân hệ độc lập được tối ưu hóa cho từng đối tượng người dùng:
+- **Admin Portal** (PC): Dành cho Ban Quản Lý điều hành hành chính.
+- **Accountant Portal** (PC): Dành cho bộ phận Kế toán quản lý tài chính và hóa đơn.
+- **Resident App** (Mobile-first): Dành cho Cư dân theo dõi thông tin và yêu cầu hỗ trợ.
 
 ## 🌟 Tính năng Cốt lõi
-*   **Hành chính Cư dân:** Quản lý Phân phòng, thông tin cá nhân, định danh CCCD và theo dõi xe cộ.
-*   **Truyền Thông:** Ban BQL có thể phát "Loa thông báo" siêu tốc giới hạn theo từng Tầng, Block hoặc toàn khu.
-*   **Support Tickets:** Cư dân nộp yêu cầu sự cố từ nhà, Admin tiếp nhận và phản hồi theo luồng hội thoại Ticket chuyên nghiệp.
-*   **System Status:** Giao diện Quản lý tự động theo dõi Ping mạng Backend (Real-time).
+
+### 1. Quản lý Hành chính & Cư dân
+- **Căn hộ & Cư dân:** Quản lý sơ đồ tòa nhà, thông tin định danh (CCCD), và lịch sử biến động nhân khẩu.
+- **Phương tiện:** Đăng ký và quản lý gửi xe (Ô tô/Xe máy) với quy trình kiểm soát hạn mức nghiêm ngặt.
+
+### 2. Kế toán & Tài chính (Mới)
+- **Định mức phí:** Cấu hình linh hoạt đơn giá điện, nước, phí quản lý và phí gửi xe theo từng thời kỳ.
+- **Hóa đơn thông minh:** Tự động phát hành hóa đơn hàng loạt, tích hợp ghi số điện nước trực tiếp vào quy trình tạo hóa đơn.
+- **Báo cáo tài chính:** Dashboard theo dõi doanh thu, tỷ lệ thu phí và nợ đọng theo thời gian thực.
+
+### 3. Truyền thông & Hỗ trợ
+- **Thông báo đa tầng:** Phát tin tức siêu tốc theo từng Block, Tầng hoặc toàn bộ cư dân.
+- **Ticket hỗ trợ:** Quy trình tiếp nhận và xử lý sự cố qua luồng hội thoại Ticket trực quan.
+
+### 4. Hệ thống & Bảo mật
+- **RBAC:** Phân quyền người dùng chặt chẽ (Admin, Accountant, Resident).
+- **Audit Logs:** Nhật ký hệ thống ghi lại mọi biến động dữ liệu để phục vụ đối soát.
 
 ---
 
 ## 🛠 Ngăn Xếp Công Nghệ (Tech Stack)
 
-### **Backend (Micro-framework)**
-*   **Core:** FastAPI (Python)
-*   **Cơ sở Dữ liệu:** MongoDB (Atlas Cloud)
-*   **ODM:** Beanie & Motor (Hỗ trợ Async Queries hoàn hảo).
+### **Backend**
+- FastAPI (Python) + MongoDB (Atlas Cloud)
+- **Beanie ODM:** Hỗ trợ Async Queries và Schema validation mạnh mẽ.
+- **Security:** JWT Auth + Bcrypt hashing.
 
-### **Frontend (SPA)**
-*   **Core:** React 19 + Vite.
-*   **CSS & Stylings:** Tailwind CSS (v4).
-*   **Component UI:** Shadcn UI + Lucide Icons.
-*   **Routing & State:** React Router DOM + Axios + In-memory Relational Joins.
+### **Frontend**
+- React 19 + Vite + Tailwind CSS v4.
+- **UI Components:** Shadcn UI + Lucide Icons + Recharts.
+- **UX:** Glassmorphism design, theme toggle (Dark/Light mode).
 
 ---
 
-## ⚙️ Hướng dẫn Khởi tạo Dự Án (Start Guide)
+## ⚙️ Hướng dẫn Khởi chạy Dự Án
 
-Dự án có cấu trúc tách biệt 2 mảng Front-Back. Vui lòng mở 2 cửa sổ Terminal (hoặc split-terminal) để chạy song song.
+### Bước 1: Khởi động Backend
+1. Di chuyển vào thư mục `backend`.
+2. Cài đặt thư viện: `pip install -r requirements.txt`.
+3. Chạy Server: `uvicorn main:app --reload`.
+Server API sẽ chạy tại: `http://localhost:8000`.
 
-### Bước 1: Khởi động Backend (FastAPI)
-Điều kiện: Cài sẵn Python 3.9+ 
-
-1. Mở Terminal, trỏ vào thư mục backend:
-   ```bash
-   cd backend
-   ```
-2. Cài đặt các thư viện cần thiết:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Chạy Máy chủ API:
-   ```bash
-   uvicorn main:app --reload
-   ```
-   Backend sẽ ở chế độ chực chờ tại `http://localhost:8000`.
-
-### Bước 2: Khởi động Frontend (React / Vite)
-Điều kiện: Cài sẵn Node.js (v18+)
-
-1. Mở Terminal số 2, trỏ vào thư mục React:
-   ```bash
-   cd frontend
-   ```
-2. Cài đặt các gói thư viện Node (Bao gồm Shadcn và Tailwind):
-   ```bash
-   npm install
-   ```
-3. Chạy môi trường Dev:
-   ```bash
-   npm run dev
-   ```
-   Frontend sẽ có mặt ở `http://localhost:5173`.
+### Bước 2: Khởi động Frontend
+1. Di chuyển vào thư mục `frontend`.
+2. Cài đặt thư viện: `npm install`.
+3. Chạy Dev: `npm run dev`.
+Ứng dụng sẽ chạy tại: `http://localhost:5173`.
 
 ---
 
 ## 🔑 Đăng Nhập Hệ Thống
 
-Ứng dụng hiện đang được gắn cấu hình `Mock Auth` (Đăng nhập không nối CSDL) để tiện lợi cho việc Test UI UX ngay lập tức - và vì sprint 1 chưa yêu cầu Authentication. 
+Hệ thống sử dụng tài khoản thực trong Database. Dưới đây là các tài khoản Seed mặc định (Mật khẩu chung: `admin123` hoặc `resident123` tùy vai trò):
 
-*   Mở trình duyệt truy cập: `http://localhost:5173/login`
-*   **Vào luồng Quản Lý:** Điền `admin` vào ô Username (Bỏ trống Password). Bạn sẽ được Routing vào Admin Dashboard.
-*   **Vào luồng Cư dân:** Điền `resident` vào ô Username. Bạn sẽ được Routing vào App Mobile.
+*   **Quản trị viên (Admin):** `admin` / `admin123`
+*   **Kế toán (Accountant):** `ketoan` / `ketoan123`
+*   **Cư dân (Resident):** `resident1` / `resident123`
+
+Truy cập trang đăng nhập tại: `http://localhost:5173/login`

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "../../components/ui/select"
 import { extractErrorMessage } from "../../lib/utils"
+import { getStoredUser } from "../../lib/auth"
 import {
   MessageSquarePlus,
   Clock,
@@ -102,20 +103,17 @@ export default function ResidentTicketsPage() {
   useEffect(() => {
     async function init() {
       try {
-        const [resRes, aptRes] = await Promise.all([
-          api.get("/residents"),
-          api.get("/apartments"),
-        ])
-        if (resRes.data.length > 0) {
-          const resident = resRes.data[0]
-          setResId(resident._id)
-          const apt = aptRes.data.find((a: any) =>
-            a.current_residents?.some(
-              (cr: any) => cr.resident_id === resident._id && cr.status === "living"
-            )
+        const user = getStoredUser()
+        if (!user?.resident_id) return
+        setResId(user.resident_id)
+
+        const aptRes = await api.get("/apartments")
+        const apt = aptRes.data.find((a: any) =>
+          a.current_residents?.some(
+            (cr: any) => cr.resident_id === user.resident_id && cr.status === "living"
           )
-          if (apt) setAptId(apt._id)
-        }
+        )
+        if (apt) setAptId(apt._id)
       } catch {
         /* silent */
       }

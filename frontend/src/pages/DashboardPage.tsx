@@ -1,109 +1,342 @@
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
-import { Users, Building2, Ticket, CheckCircle, XCircle } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 import { api } from "../lib/axios"
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
+import { Skeleton } from "../components/ui/skeleton"
+import {
+  Building2,
+  Users,
+  Ticket,
+  CheckCircle,
+  XCircle,
+  Car,
+  ArrowUp,
+  ArrowDown,
+  TrendingUp,
+  AlertTriangle,
+} from "lucide-react"
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+} from "recharts"
+
+const CHART_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+]
+
+const RADIAN = Math.PI / 180
+function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
+  if (percent < 0.05) return null
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+  return (
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight="bold">
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  )
+}
+
+function formatVND(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
+  return `${n}`
+}
 
 export default function DashboardPage() {
   const [status, setStatus] = useState("Đang kiểm tra...")
   const [isOnline, setIsOnline] = useState(true)
-  const [stats, setStats] = useState({
-    apartments: 0,
-    residents: 0,
-    activeTickets: 0,
-  })
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<any>(null)
 
   useEffect(() => {
-    Promise.all([
-      api.get("/apartments"),
-      api.get("/residents"),
-      api.get("/tickets"),
-    ])
-      .then(([resApt, resRes, resTick]) => {
+    api.get("/dashboard/stats")
+      .then((res) => {
         setStatus("Trực tuyến")
         setIsOnline(true)
-        setStats({
-          apartments: resApt.data.length,
-          residents: resRes.data.length,
-          // Count open + processing tickets
-          activeTickets: resTick.data.filter(
-            (t: any) => t.status === "open" || t.status === "processing"
-          ).length,
-        })
+        setData(res.data)
       })
       .catch(() => {
         setStatus("Ngoại tuyến")
         setIsOnline(false)
       })
+      .finally(() => setLoading(false))
   }, [])
 
-  return (
-    <div className="animate-in space-y-6 duration-500 fade-in slide-in-from-bottom-2">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Tổng quan hệ thống</h2>
-        <p className="text-muted-foreground">
-          Thống kê chung của chung cư BlueMoon.
-        </p>
-      </div>
+  const counts = data?.counts ?? {}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="transition-shadow hover:shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Tổng số căn hộ
-            </CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.apartments}</div>
-            <p className="mt-1 text-xs text-muted-foreground">Căn hộ đã đăng ký</p>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-shadow hover:shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Cư dân đang ở
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.residents}</div>
-            <p className="mt-1 text-xs text-muted-foreground">Nhân khẩu đã đăng ký</p>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-shadow hover:shadow-md border-amber-500/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ticket cần xử lý</CardTitle>
-            <Ticket className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{stats.activeTickets}</div>
-            <p className="mt-1 text-xs text-muted-foreground">Mới + đang xử lý</p>
-          </CardContent>
-        </Card>
-
-        <Card
-          className={`transition-shadow hover:shadow-md border-${isOnline ? "green" : "red"}-500/20`}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Trạng thái hệ thống</CardTitle>
-            {isOnline ? (
-              <CheckCircle className="h-4 w-4 text-green-500" />
-            ) : (
-              <XCircle className="h-4 w-4 text-red-500" />
-            )}
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`text-2xl font-bold ${isOnline ? "text-green-500" : "text-red-500"}`}
-            >
-              {status}
+  const StatCard = ({
+    title,
+    value,
+    icon: Icon,
+    trend,
+    colorClass,
+    delay = 0,
+  }: {
+    title: string
+    value: ReactNode
+    icon: any
+    trend?: "up" | "down" | null
+    colorClass: string
+    delay?: number
+  }) => (
+    <div
+      className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className={`absolute -right-4 -top-4 h-20 w-20 rounded-full opacity-10 blur-2xl ${colorClass}`} />
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <p className="text-xs font-medium tracking-wide uppercase text-muted-foreground">{title}</p>
+          <p className="text-3xl font-bold tracking-tight">{value}</p>
+          {trend && (
+            <div className={`flex items-center gap-1 text-xs font-medium ${trend === "up" ? "text-emerald-500" : "text-red-500"}`}>
+              {trend === "up" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+              <span>+12%</span>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">Kết nối Backend API</p>
+          )}
+        </div>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${colorClass}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Tổng quan hệ thống</h2>
+          <p className="text-muted-foreground">Thống kê chung của chung cư BlueMoon.</p>
+        </div>
+        <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium ${isOnline ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"}`}>
+          {isOnline ? <CheckCircle className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+          {status}
+        </div>
+      </div>
+
+      {/* Bento Grid Stats */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          title="Tổng căn hộ"
+          value={loading ? <Skeleton className="h-8 w-16" /> : counts.apartments ?? 0}
+          icon={Building2}
+          colorClass="bg-primary/10 text-primary"
+          delay={0}
+        />
+        <StatCard
+          title="Cư dân"
+          value={loading ? <Skeleton className="h-8 w-16" /> : counts.residents ?? 0}
+          icon={Users}
+          trend="up"
+          colorClass="bg-chart-2/10 text-chart-2"
+          delay={100}
+        />
+        <StatCard
+          title="Ticket cần xử lý"
+          value={loading ? <Skeleton className="h-8 w-16" /> : counts.activeTickets ?? 0}
+          icon={Ticket}
+          colorClass="bg-chart-3/10 text-chart-3"
+          delay={200}
+        />
+        <StatCard
+          title="Phương tiện"
+          value={loading ? <Skeleton className="h-8 w-16" /> : counts.vehicles ?? 0}
+          icon={Car}
+          colorClass="bg-chart-4/10 text-chart-4"
+          delay={300}
+        />
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Revenue Trend */}
+        <Card className="md:col-span-2 overflow-hidden border-0 shadow-lg">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Doanh thu theo tháng (VND)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-[180px] w-full rounded-xl" />
+            ) : (
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={data?.revenueTrend ?? []}>
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={formatVND} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", fontSize: "12px" }}
+                    formatter={(value: unknown) => [`${Number(value).toLocaleString("vi-VN")} đ`, ""]}
+                  />
+                  <Line type="monotone" dataKey="billed" stroke="var(--chart-1)" strokeWidth={2.5} dot={{ r: 4 }} name="Tổng chi" />
+                  <Line type="monotone" dataKey="collected" stroke="var(--chart-2)" strokeWidth={2.5} dot={{ r: 4 }} name="Đã thu" />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Occupancy Rate Donut */}
+        <Card className="overflow-hidden border-0 shadow-lg">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Tỷ lệ căn hộ</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center">
+            {loading ? (
+              <Skeleton className="h-[180px] w-[180px] rounded-full" />
+            ) : (
+              <div className="relative">
+                <ResponsiveContainer width={180} height={180}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: "Đang ở", value: counts.occupiedRate ?? 0 },
+                        { name: "Trống", value: 100 - (counts.occupiedRate ?? 0) },
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={80}
+                      dataKey="value"
+                      startAngle={90}
+                      endAngle={-270}
+                      labelLine={false}
+                      label={CustomLabel}
+                    >
+                      <Cell fill="var(--primary)" />
+                      <Cell fill="var(--muted)" />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-3xl font-bold">{counts.occupiedRate ?? 0}%</span>
+                  <span className="text-xs text-muted-foreground">lấp đầy</span>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Second Row */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Ticket Category Breakdown */}
+        <Card className="overflow-hidden border-0 shadow-lg">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Phân bổ Ticket theo loại</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-[160px] w-full rounded-xl" />
+            ) : (
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={data?.ticketByCategory ?? []} layout="vertical">
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={100} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", fontSize: "12px" }}
+                    formatter={(value: unknown) => [`${value}`, "Số ticket"]}
+                  />
+                  <Bar dataKey="value" fill="var(--chart-3)" radius={[0, 8, 8, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Collection Rate */}
+        <Card className="overflow-hidden border-0 shadow-lg">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Tỷ lệ thu phí
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-[160px] w-full rounded-xl" />
+            ) : (
+              <ResponsiveContainer width="100%" height={160}>
+                <PieChart>
+                  <Pie
+                    data={data?.collectionData ?? []}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={75}
+                    dataKey="value"
+                    labelLine={false}
+                    label={CustomLabel}
+                  >
+                    {(data?.collectionData ?? []).map((_: any, i: number) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", fontSize: "12px" }}
+                    formatter={(value: unknown) => [`${Number(value).toLocaleString("vi-VN")} đ`, ""]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+            {/* Legend */}
+            {!loading && data?.collectionData && (
+              <div className="mt-2 flex flex-wrap justify-center gap-3">
+                {data.collectionData.map((item: any, i: number) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <div className="h-2.5 w-2.5 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                    <span className="text-xs text-muted-foreground">{item.name}</span>
+                    <span className="text-xs font-semibold">{formatVND(item.value)} đ</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Debt Aging */}
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            Công nợ theo thời gian quá hạn
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-[100px] w-full rounded-xl" />
+          ) : (
+            <ResponsiveContainer width="100%" height={100}>
+              <BarChart data={data?.debtAging ?? []}>
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={formatVND} />
+                <Tooltip
+                  contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", fontSize: "12px" }}
+                  formatter={(value: unknown) => [`${Number(value).toLocaleString("vi-VN")} đ`, "Công nợ"]}
+                />
+                <Bar dataKey="value" fill="var(--chart-5)" radius={[6, 6, 0, 0]} barSize={50} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

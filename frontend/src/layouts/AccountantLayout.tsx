@@ -1,8 +1,14 @@
 import { useState, useEffect } from "react"
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import {
-  Home, Building2, Users, Ticket, Bell, Car, LogOut, Menu, X,
-  LayoutDashboard, ChevronRight, History
+  LayoutDashboard,
+  Receipt,
+  Gauge,
+  FileText,
+  LogOut,
+  Menu,
+  X,
+  ChevronRight,
 } from "lucide-react"
 import { cn } from "../lib/utils"
 import { Button } from "../components/ui/button"
@@ -10,25 +16,21 @@ import { ModeToggle } from "../components/mode-toggle"
 import { clearAuth, getStoredUser } from "../lib/auth"
 
 const menuItems = [
-  { title: "Tổng quan", icon: Home, path: "/dashboard", exact: true },
-  { title: "Căn hộ", icon: Building2, path: "/dashboard/apartments" },
-  { title: "Cư dân", icon: Users, path: "/dashboard/residents" },
-  { title: "Phương tiện", icon: Car, path: "/dashboard/vehicles" },
-  { title: "Ticket hỗ trợ", icon: Ticket, path: "/dashboard/tickets" },
-  { title: "Thông báo", icon: Bell, path: "/dashboard/notifications" },
-  { title: "Nhật ký hệ thống", icon: History, path: "/dashboard/audit-logs" },
+  { title: "Tổng quan", icon: LayoutDashboard, path: "/accountant" },
+  { title: "Định mức phí", icon: FileText, path: "/accountant/fee-rates" },
+  { title: "Hóa đơn", icon: Receipt, path: "/accountant/invoices" },
 ]
 
 function getBreadcrumb(pathname: string) {
   const parts = pathname.split("/").filter(Boolean)
-  if (parts.length === 1 && parts[0] === "dashboard") return ["Tổng quan"]
-  return parts.map(p => {
-    const item = menuItems.find(m => m.path.includes(p))
+  if (parts.length === 1 && parts[0] === "accountant") return ["Tổng quan"]
+  return parts.map((p) => {
+    const item = menuItems.find((m) => m.path.includes(p))
     return item ? item.title : p
   })
 }
 
-export default function DashboardLayout() {
+export default function AccountantLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -49,7 +51,7 @@ export default function DashboardLayout() {
     <>
       <nav className="flex flex-col gap-1">
         {menuItems.map((item) => {
-          const active = item.exact
+          const active = item.path === "/accountant"
             ? location.pathname === item.path
             : location.pathname.startsWith(item.path)
           return (
@@ -100,11 +102,16 @@ export default function DashboardLayout() {
         {/* Logo */}
         <div className="flex h-16 shrink-0 items-center border-b border-border/50 px-4 gap-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <LayoutDashboard className="h-4 w-4" />
+            <Receipt className="h-4 w-4" />
           </div>
           {!isCollapsed && (
             <span className="text-lg font-bold tracking-tight text-primary">
               BlueMoon
+            </span>
+          )}
+          {!isCollapsed && (
+            <span className="ml-1 rounded bg-chart-2/20 px-1.5 py-0.5 text-[10px] font-bold text-chart-2">
+              KẾ TOÁN
             </span>
           )}
         </div>
@@ -143,11 +150,10 @@ export default function DashboardLayout() {
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-border/50 px-5">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <LayoutDashboard className="h-4 w-4" />
+              <Receipt className="h-4 w-4" />
             </div>
-            <span className="text-lg font-bold tracking-tight text-primary">
-              BlueMoon
-            </span>
+            <span className="text-lg font-bold tracking-tight text-primary">BlueMoon</span>
+            <span className="ml-1 rounded bg-chart-2/20 px-1.5 py-0.5 text-[10px] font-bold text-chart-2">KẾ TOÁN</span>
           </div>
           <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
             <X className="h-5 w-5" />
@@ -186,7 +192,7 @@ export default function DashboardLayout() {
           <div className="flex-1" />
           <ModeToggle />
           <span className="hidden text-xs font-medium text-muted-foreground md:inline">
-            {getStoredUser()?.full_name || getStoredUser()?.username || "Quản trị viên"}
+            {getStoredUser()?.full_name || getStoredUser()?.username || "Kế toán"}
           </span>
         </header>
 

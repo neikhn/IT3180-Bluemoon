@@ -23,7 +23,7 @@ class Apartment(Document):
     area_sqm: float
     apartment_type: str = "standard" # 'standard', 'studio', 'duplex', 'penthouse'
     interior_notes: Optional[str] = None
-    status: str = "available" # 'available', 'occupied', 'maintenance'
+    status: str = "available" # 'available', 'occupied', 'maintenance', 'deleted'
     
     current_residents: List[MinimalResidentInfo] = []
     change_history: List[ChangeHistory] = []
