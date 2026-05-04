@@ -1,23 +1,16 @@
 from datetime import datetime
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, HTTPException
 from beanie import PydanticObjectId
 from pydantic import BaseModel, Field, EmailStr
 from models.resident import Resident, ResidentHistory
 from models.apartment import Apartment, MinimalResidentInfo
-from core.audit import log_action, get_actor_from_request
 
 router = APIRouter()
 
 def title_case_name(name: str) -> str:
     """Chuẩn hóa tên: uppercase chữ đầu mỗi từ."""
     return " ".join(word.capitalize() for word in name.strip().split())
-
-MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB limit for base64 images
-
-def validate_base64_size(data: str, field_name: str) -> None:
-    if data and len(data) > MAX_IMAGE_SIZE:
-        raise HTTPException(status_code=400, detail=f"{field_name} vượt quá kích thước cho phép (tối đa 10MB).")
 
 class ResidentCreate(BaseModel):
     full_name: str
@@ -42,25 +35,16 @@ class ResidentUpdate(BaseModel):
     cccd_back_base64: Optional[str] = None
 
 @router.get("/residents", response_model=List[Resident])
-async def search_residents(
-    name: Optional[str] = None,
-    phone: Optional[str] = None,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=200),
-):
-    query = {"status": {"$ne": "inactive"}}
+async def search_residents(name: Optional[str] = None, phone: Optional[str] = None):
+    query = {}
     if name:
         query["full_name"] = {"$regex": name, "$options": "i"}
     if phone:
         query["phone_number"] = {"$regex": phone, "$options": "i"}
-    return await Resident.find(query).skip(skip).limit(limit).to_list()
+    return await Resident.find(query).to_list()
 
 @router.post("/residents", response_model=Resident, status_code=201)
-async def create_resident(payload: ResidentCreate, request: Request):
-    if payload.cccd_front_base64:
-        validate_base64_size(payload.cccd_front_base64, "Ảnh CCCD mặt trước")
-    if payload.cccd_back_base64:
-        validate_base64_size(payload.cccd_back_base64, "Ảnh CCCD mặt sau")
+async def create_resident(payload: ResidentCreate):
     existing_cccd = await Resident.find_one(Resident.identity_card == payload.identity_card)
     if existing_cccd:
         raise HTTPException(status_code=400, detail="CCCD này đã tồn tại trong hệ thống!")
@@ -85,11 +69,7 @@ async def create_resident(payload: ResidentCreate, request: Request):
         cccd_front_base64=payload.cccd_front_base64,
         cccd_back_base64=payload.cccd_back_base64
     )
-    actor = await get_actor_from_request(request)
-    new_resident.change_history.append(ResidentHistory(
-        changes_summary="Tạo mới hồ sơ",
-        changed_by=actor.get("actor_username", "system")
-    ))
+    new_resident.change_history.append(ResidentHistory(changes_summary="Tạo mới hồ sơ"))
     await new_resident.insert()
 
     resident_embed_info = MinimalResidentInfo(
@@ -100,26 +80,17 @@ async def create_resident(payload: ResidentCreate, request: Request):
         move_in_date=datetime.utcnow()
     )
     apartment.current_residents.append(resident_embed_info)
-
+    
     living_count = sum(1 for cr in apartment.current_residents if cr.status == "living")
     if living_count > 0 and apartment.status == "available":
         apartment.status = "occupied"
-
+        
     await apartment.save()
-    actor = await get_actor_from_request(request)
-    await log_action(
-        action="create", 
-        resource_type="resident", 
-        resource_id=str(new_resident.id), 
-        description=f"Tạo cư dân [{new_resident.full_name}]", 
-        actor_id=actor["actor_id"], 
-        actor_username=actor["actor_username"], 
-        actor_role=actor["actor_role"]
-    )
+    
     return new_resident
 
 @router.patch("/residents/{resident_id}", response_model=Resident)
-async def update_resident(resident_id: PydanticObjectId, payload: ResidentUpdate, request: Request):
+async def update_resident(resident_id: PydanticObjectId, payload: ResidentUpdate):
     resident = await Resident.get(resident_id)
     if not resident:
         raise HTTPException(status_code=404, detail="Không tìm thấy Resident")
@@ -158,63 +129,22 @@ async def update_resident(resident_id: PydanticObjectId, payload: ResidentUpdate
         if actually_changed:
             now = datetime.utcnow()
             summary = "; ".join(actually_changed)
-            actor = await get_actor_from_request(request)
             resident.change_history.append(ResidentHistory(
                 changed_at=now,
-                changes_summary=summary,
-                changed_by=actor.get("actor_username", "system")
+                changes_summary=summary
             ))
             resident.updated_at = now
 
-            # Đồng bộ tên mới vào embedded data trong Apartment (bulk update)
+            # Đồng bộ tên mới vào embedded data trong Apartment
             if "full_name" in update_data:
-                new_name = update_data["full_name"]
-                await Apartment.get_motor_collection().update_many(
-                    {"current_residents.resident_id": resident_id},
-                    {"$set": {"current_residents.$[elem].full_name": new_name}},
-                    array_filters=[{"elem.resident_id": resident_id}]
-                )
+                all_apartments = await Apartment.find().to_list()
+                for apt in all_apartments:
+                    for cr in apt.current_residents:
+                        if cr.resident_id == resident_id:
+                            cr.full_name = update_data["full_name"]
+                            await apt.save()
+                            break
 
             await resident.save()
-            actor = await get_actor_from_request(request)
-            await log_action(
-                action="update", 
-                resource_type="resident", 
-                resource_id=str(resident_id), 
-                description=f"Cập nhật cư dân [{resident.full_name}]: {summary}", 
-                actor_id=actor["actor_id"], 
-                actor_username=actor["actor_username"], 
-                actor_role=actor["actor_role"]
-            )
 
     return resident
-
-@router.delete("/{resident_id}", status_code=200)
-async def delete_resident(resident_id: PydanticObjectId, request: Request):
-    """Xóa cư dân (soft-delete)."""
-    resident = await Resident.get(resident_id)
-    if not resident:
-        raise HTTPException(status_code=404, detail="Không tìm thấy Resident")
-    
-    # Check if resident is currently living in any apartment
-    from models.apartment import Apartment
-    apt_with_resident = await Apartment.find_one({"current_residents": {"$elemMatch": {"resident_id": resident_id, "status": "living"}}})
-    if apt_with_resident:
-        raise HTTPException(status_code=400, detail=f"Không thể xóa! Cư dân đang sinh sống tại căn hộ {apt_with_resident.block}-{apt_with_resident.apartment_number}. Vui lòng chuyển đi trước.")
-
-    resident.status = "inactive"
-    resident.updated_at = datetime.utcnow()
-    await resident.save()
-
-    actor = await get_actor_from_request(request)
-    await log_action(
-        action="delete", 
-        resource_type="resident", 
-        resource_id=str(resident_id), 
-        description=f"Xóa (soft-delete) cư dân [{resident.full_name}]", 
-        actor_id=actor["actor_id"], 
-        actor_username=actor["actor_username"], 
-        actor_role=actor["actor_role"]
-    )
-
-    return {"message": f"Đã xóa cư dân {resident.full_name} thành công (soft-delete)."}

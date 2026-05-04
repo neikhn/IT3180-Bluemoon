@@ -27,7 +27,6 @@ import {
   SelectValue,
 } from "../../components/ui/select"
 import { AlertCircle, Save, Car, Users, Building2, Layers } from "lucide-react"
-import { getStoredUser } from "../../lib/auth"
 import { extractErrorMessage } from "../../lib/utils"
 
 const PLATE_REGEX = /^[0-9]{2}[A-Z][A-Z0-9]?-[0-9]{3,4}\.?[0-9]{2}$/
@@ -67,12 +66,6 @@ export default function ProfilePage() {
   useEffect(() => {
     async function init() {
       try {
-        const user = getStoredUser()
-        if (!user?.resident_id) {
-          setLoading(false)
-          return
-        }
-
         const [resRes, aptRes, vehRes] = await Promise.all([
           api.get("/residents"),
           api.get("/apartments"),
@@ -80,25 +73,24 @@ export default function ProfilePage() {
         ])
         setAllResidents(resRes.data)
 
-        const resident = resRes.data.find((r: any) => r._id === user.resident_id)
-        if (!resident) {
-          setLoading(false)
-          return
-        }
-        setMe(resident)
-        setEditPhone(resident.phone_number)
-        setEditEmail(resident.email || "")
+        if (resRes.data.length > 0) {
+          const resident = resRes.data[0]
+          setMe(resident)
+          setEditPhone(resident.phone_number)
+          setEditEmail(resident.email || "")
 
-        const apt = aptRes.data.find((a: any) =>
-          a.current_residents?.some(
-            (cr: any) => cr.resident_id === user.resident_id && cr.status === "living"
+          const apt = aptRes.data.find((a: any) =>
+            a.current_residents?.some(
+              (cr: any) => cr.resident_id === resident._id && cr.status === "living"
+            )
           )
-        )
-        setMyApt(apt)
+          setMyApt(apt)
 
-        if (apt) {
-          const veh = vehRes.data.filter((v: any) => v.apartment_id === apt._id)
-          setAptVehicles(veh)
+          if (apt) {
+            // Filter vehicles for this apartment
+            const veh = vehRes.data.filter((v: any) => v.apartment_id === apt._id)
+            setAptVehicles(veh)
+          }
         }
       } catch {
         toast.error("Không thể tải thông tin cá nhân.")
@@ -123,8 +115,8 @@ export default function ProfilePage() {
         email: editEmail,
       })
       toast.success("Cập nhật thông tin liên hệ thành công!")
-      const res = await api.get(`/residents/${me._id}`)
-      setMe(res.data)
+      const res = await api.get("/residents")
+      setMe(res.data.find((r: any) => r._id === me._id))
     } catch (err: any) {
       toast.error(extractErrorMessage(err, "Lỗi cập nhật thông tin."))
     }

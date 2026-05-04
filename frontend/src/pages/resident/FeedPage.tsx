@@ -8,15 +8,7 @@ import {
 } from "../../components/ui/card"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
-import { CheckCircle2, Circle, Bell, EyeOff, Eye, ChevronRight } from "lucide-react"
-import { getStoredUser } from "../../lib/auth"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "../../components/ui/dialog"
+import { CheckCircle2, Circle, Bell, EyeOff, Eye } from "lucide-react"
 
 const SCOPE_LABELS: Record<string, string> = {
   all: "Toàn bộ",
@@ -31,29 +23,32 @@ export default function FeedPage() {
   const [aptId, setAptId] = useState<string | null>(null)
   const [resId, setResId] = useState<string | null>(null)
   const [showRead, setShowRead] = useState(true)
-  const [selectedNotif, setSelectedNotif] = useState<any>(null)
 
   // Fetch the current resident's real apartment id
   useEffect(() => {
     async function init() {
       try {
-        const user = getStoredUser()
-        if (!user?.resident_id) {
-          setLoading(false)
-          return
-        }
-        setResId(user.resident_id)
+        const [resRes, aptRes] = await Promise.all([
+          api.get("/residents"),
+          api.get("/apartments"),
+        ])
 
-        const aptRes = await api.get("/apartments")
-        const apt = aptRes.data.find((a: any) =>
-          a.current_residents?.some(
-            (cr: any) => cr.resident_id === user.resident_id && cr.status === "living"
+        if (resRes.data.length > 0) {
+          const resident = resRes.data[0]
+          setResId(resident._id)
+
+          const apt = aptRes.data.find((a: any) =>
+            a.current_residents?.some(
+              (cr: any) => cr.resident_id === resident._id && cr.status === "living"
+            )
           )
-        )
-        if (apt) {
-          setAptId(apt._id)
+          if (apt) {
+            setAptId(apt._id)
+          } else {
+            setAptId("none")
+          }
         } else {
-          setAptId("none")
+          setLoading(false)
         }
       } catch (e) {
         console.error(e)
@@ -94,21 +89,7 @@ export default function FeedPage() {
     }
   }
 
-  function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;")
-}
-
-function renderContent(content: string): string {
-  // Tránh lỗi bảo mật khi render HTML nhưng vẫn giữ được xuống dòng
-  return escapeHtml(content).replace(/\n/g, "<br/>")
-}
-
-const isRead = (n: any) => resId && n.read_by?.includes(resId)
+  const isRead = (n: any) => resId && n.read_by?.includes(resId)
 
   const readCount = useMemo(
     () => notifs.filter(n => isRead(n)).length,
@@ -177,11 +158,8 @@ const isRead = (n: any) => resId && n.read_by?.includes(resId)
         return (
           <Card
             key={n._id}
-            onClick={() => {
-              setSelectedNotif(n)
-              if (!read) handleRead(n._id)
-            }}
-            className={`cursor-pointer border-l-[4px] shadow-sm transition-all hover:translate-x-1 ${
+            onClick={() => !read && handleRead(n._id)}
+            className={`cursor-pointer border-l-[4px] shadow-sm transition-all ${
               read
                 ? "border-l-muted opacity-70"
                 : "scale-[1.01] border-l-primary shadow-md"
@@ -219,48 +197,13 @@ const isRead = (n: any) => resId && n.read_by?.includes(resId)
             </CardHeader>
             <CardContent>
               <div
-                className="line-clamp-2 overflow-hidden text-sm leading-relaxed text-foreground/80 break-words"
-                dangerouslySetInnerHTML={{ __html: renderContent(n.content) }}
+                className="line-clamp-3 overflow-hidden text-sm leading-relaxed text-ellipsis text-foreground/80"
+                dangerouslySetInnerHTML={{ __html: n.content }}
               />
-              <div className="mt-3 flex items-center justify-end text-[10px] font-bold text-primary opacity-0 transition-opacity group-hover:opacity-100">
-                XEM CHI TIẾT <ChevronRight className="h-3 w-3" />
-              </div>
             </CardContent>
           </Card>
         )
       })}
-
-      {/* Detail Dialog */}
-      <Dialog open={!!selectedNotif} onOpenChange={(open) => !open && setSelectedNotif(null)}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
-          <div className="bg-primary/5 p-6 pb-4">
-            <DialogHeader>
-              <div className="flex items-center gap-2 mb-2">
-                <Badge variant="outline" className="bg-background">
-                  {selectedNotif && (SCOPE_LABELS[selectedNotif.scope_type] || selectedNotif.scope_type)}
-                </Badge>
-                <span className="text-xs text-muted-foreground">
-                  {selectedNotif && new Date(selectedNotif.created_at).toLocaleString("vi-VN")}
-                </span>
-              </div>
-              <DialogTitle className="text-xl font-bold leading-tight text-primary">
-                {selectedNotif?.title}
-              </DialogTitle>
-            </DialogHeader>
-          </div>
-          <div className="flex-1 overflow-y-auto p-6 pt-2">
-            <div 
-              className="text-sm leading-7 text-foreground/90 whitespace-pre-wrap break-words"
-              dangerouslySetInnerHTML={{ 
-                __html: selectedNotif ? renderContent(selectedNotif.content) : "" 
-              }}
-            />
-          </div>
-          <div className="border-t bg-muted/20 p-4 flex justify-end">
-            <Button variant="secondary" onClick={() => setSelectedNotif(null)}>Đóng</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
