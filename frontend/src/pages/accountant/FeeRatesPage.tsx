@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
-import { Badge } from "../../components/ui/badge"
 import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, AlertTriangle } from "lucide-react"
 
 const FEE_LABELS: Record<string, string> = {

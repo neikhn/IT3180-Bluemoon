@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { api } from "../../lib/axios"
 import { toast } from "sonner"
-import { Card, CardContent } from "../../components/ui/card"
+import { Card } from "../../components/ui/card"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import { Skeleton } from "../../components/ui/skeleton"
@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Badge } from "../../components/ui/badge"
-import { Plus, Receipt, CheckCircle2, Clock, XCircle, FileText, Search, User, Home, Zap, Droplets, MoreHorizontal, Eye, ChevronRight, Settings2, Car, Bike } from "lucide-react"
+import { Plus, Receipt, CheckCircle2, Clock, XCircle, FileText, Search, Home, Zap, Droplets, Eye, ChevronRight, Car, Bike } from "lucide-react"
 import { Checkbox } from "../../components/ui/checkbox"
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: any }> = {

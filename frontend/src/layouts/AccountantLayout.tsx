@@ -3,7 +3,6 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import {
   LayoutDashboard,
   Receipt,
-  Gauge,
   FileText,
   LogOut,
   Menu,

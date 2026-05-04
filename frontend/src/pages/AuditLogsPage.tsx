@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react"
 import { api } from "../lib/axios"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card"
+import { Card, CardContent, CardHeader } from "../components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
 import {
-  Search, Filter, History, User, Activity,
+  Filter, User, Activity,
   ChevronLeft, ChevronRight, FileJson, Clock
 } from "lucide-react"
 import {

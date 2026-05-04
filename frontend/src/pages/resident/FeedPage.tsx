@@ -15,7 +15,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "../../components/ui/dialog"
 
 const SCOPE_LABELS: Record<string, string> = {

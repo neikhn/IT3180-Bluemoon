@@ -15,9 +15,6 @@ import {
 import { Badge } from "../../components/ui/badge"
 import { Plus, Zap, Droplets, AlertTriangle } from "lucide-react"
 
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(n)
-}
 
 export default function MeterReadingsPage() {
   const [readings, setReadings] = useState<any[]>([])
@@ -29,7 +26,7 @@ export default function MeterReadingsPage() {
   const fetchData = () => {
     Promise.all([api.get("/meter-readings"), api.get("/apartments")])
       .then(([rRes, aptRes]) => { setReadings(rRes.data); setApartments(aptRes.data) })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false))
   }
 
