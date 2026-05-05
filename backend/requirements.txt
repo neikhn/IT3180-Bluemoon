@@ -5,3 +5,6 @@ beanie
 pydantic
 pydantic-settings
 email-validator
+python-jose[cryptography]
+bcrypt
+python-dotenv
