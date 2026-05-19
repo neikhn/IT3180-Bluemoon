@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
 import { api } from "../lib/axios"
 import { toast } from "sonner"
 import {
@@ -43,6 +44,7 @@ import {
 
 const CATEGORY_LABELS: Record<string, string> = {
   vehicle_registration: "Đăng ký PT",
+  household_change: "Nhân khẩu",
   technical: "Kỹ thuật",
   hygiene: "Vệ sinh",
   security: "An ninh",
@@ -76,6 +78,7 @@ export default function TicketsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
 
   const ADMIN_ID = getStoredUser()?.id
+  const navigate = useNavigate()
 
   const fetchData = async () => {
     try {
@@ -135,8 +138,18 @@ export default function TicketsPage() {
 
   const handleApprove = async () => {
     try {
-      await api.post(`/tickets/${selectedTicket._id}/approve`)
-      toast.success("Đã duyệt đăng ký phương tiện thành công!")
+      const res = await api.post(`/tickets/${selectedTicket._id}/approve`)
+      if (selectedTicket.category === "vehicle_registration") {
+        toast.success("Đã duyệt đăng ký phương tiện thành công!")
+      } else if (selectedTicket.category === "household_change") {
+        if (res.data.new_resident_id) {
+          toast.success(`Đã duyệt! Chuyển sang tạo tài khoản cho ${res.data.new_resident_name}.`)
+          setSelectedTicket(null)
+          setTimeout(() => navigate(`/dashboard/accounts?new_resident=${res.data.new_resident_id}`), 500)
+        } else {
+          toast.success("Đã duyệt yêu cầu nhân khẩu!")
+        }
+      }
       fetchData()
     } catch (err: any) {
       toast.error(extractErrorMessage(err, "Lỗi duyệt ticket."))
@@ -194,6 +207,8 @@ export default function TicketsPage() {
   }
 
   const isVehicleTicket = selectedTicket?.category === "vehicle_registration"
+  const isHouseholdTicket = selectedTicket?.category === "household_change"
+  const isApprovable = isVehicleTicket || isHouseholdTicket
   const isPendingClose = selectedTicket?.status === "pending_close"
   const isActive = selectedTicket && !["closed", "rejected"].includes(selectedTicket.status)
   const adminCanAccept = isPendingClose && selectedTicket?.pending_close_by === "resident"
@@ -331,7 +346,7 @@ export default function TicketsPage() {
 
             {isActive && (
               <div className="mt-3 flex flex-wrap gap-2">
-                {isVehicleTicket ? (
+                {isApprovable ? (
                   <>
                     <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={handleApprove}>
                       <ShieldCheck className="h-3.5 w-3.5" /> Duyệt
@@ -368,7 +383,7 @@ export default function TicketsPage() {
             <div>
               <div className="mb-2 flex items-center gap-2">
                 <Badge variant="secondary" className="text-xs capitalize">
-                  {selectedTicket?.category === "vehicle_registration" ? "Đăng ký phương tiện" : selectedTicket?.category}
+                  {CATEGORY_LABELS[selectedTicket?.category] || selectedTicket?.category}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
                   {selectedTicket && new Date(selectedTicket.created_at).toLocaleString("vi-VN")}
@@ -397,6 +412,49 @@ export default function TicketsPage() {
                   ) : (
                     <p className="rounded-lg bg-muted p-4 text-sm">{selectedTicket?.description}</p>
                   )
+                })()
+              ) : isHouseholdTicket ? (
+                (() => {
+                  const hd = parseVehicleData(selectedTicket?.description || "")
+                  if (!hd) return <p className="rounded-lg bg-muted p-4 text-sm">{selectedTicket?.description}</p>
+
+                  const RELATIONSHIP_LABELS: Record<string, string> = {
+                    owner: "Chủ hộ", family: "Người thân", tenant: "Người thuê"
+                  }
+                  const STATUS_LABELS: Record<string, string> = {
+                    registered: "Thường trú", temporary: "Tạm trú", temporary_absent: "Tạm vắng"
+                  }
+
+                  if (hd.request_type === "add_member") {
+                    return (
+                      <div className="space-y-2 rounded-lg border bg-muted/50 p-4 text-sm">
+                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Yêu cầu thêm nhân khẩu mới</p>
+                        {[
+                          ["Họ tên", hd.full_name],
+                          ["CCCD", hd.identity_card],
+                          ["SĐT", hd.phone_number],
+                          ["Ngày sinh", hd.date_of_birth ? new Date(hd.date_of_birth).toLocaleDateString("vi-VN") : ""],
+                          ["Quan hệ", RELATIONSHIP_LABELS[hd.relationship] || hd.relationship],
+                          hd.email ? ["Email", hd.email] : null,
+                        ].filter(Boolean).map(([label, value]: any) => (
+                          <div key={label} className="flex items-center justify-between gap-4">
+                            <span className="text-muted-foreground shrink-0">{label}</span>
+                            <span className="font-medium text-right">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  } else {
+                    return (
+                      <div className="rounded-lg border bg-muted/50 p-4 text-sm">
+                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Yêu cầu thay đổi trạng thái cư trú</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Trạng thái mới</span>
+                          <Badge variant="outline">{STATUS_LABELS[hd.new_status] || hd.new_status}</Badge>
+                        </div>
+                      </div>
+                    )
+                  }
                 })()
               ) : (
                 <p className="rounded-lg border bg-muted/50 p-4 text-sm leading-relaxed">{selectedTicket?.description}</p>

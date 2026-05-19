@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select"
-import { AlertCircle, Save, Car, Users, Building2, Layers } from "lucide-react"
+import { AlertCircle, Save, Car, Users, Building2, Layers, ClipboardList } from "lucide-react"
 import { getStoredUser } from "../../lib/auth"
 import { extractErrorMessage } from "../../lib/utils"
 
@@ -63,6 +63,17 @@ export default function ProfilePage() {
     vehicle_name: "",
   })
   const [vehErrors, setVehErrors] = useState<Record<string, string>>({})
+
+  // Household change
+  const [isHouseholdOpen, setIsHouseholdOpen] = useState(false)
+  const [hhType, setHhType] = useState<"add_member" | "change_status">("add_member")
+  const [hhMemberForm, setHhMemberForm] = useState({
+    full_name: "", identity_card: "", phone_number: "", date_of_birth: "",
+    email: "", relationship: "family",
+  })
+  const [hhStatusForm, setHhStatusForm] = useState({ new_status: "registered" })
+  const [hhLoading, setHhLoading] = useState(false)
+  const [hhErrors, setHhErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     async function init() {
@@ -161,6 +172,56 @@ export default function ProfilePage() {
       toast.success("Đã gửi yêu cầu đăng ký! Ban quản lý sẽ duyệt sớm nhất có thể.")
     } catch (err: any) {
       toast.error(extractErrorMessage(err, "Lỗi gửi yêu cầu đăng ký."))
+    }
+  }
+
+  const handleHouseholdSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!me || !myApt) return
+    setHhLoading(true)
+    setHhErrors({})
+    try {
+      let description: string
+      let title: string
+
+      if (hhType === "add_member") {
+        const errs: Record<string, string> = {}
+        if (!hhMemberForm.full_name.trim()) errs.full_name = "Vui lòng nhập họ tên."
+        if (!/^[0-9]{12}$/.test(hhMemberForm.identity_card)) errs.identity_card = "CCCD phải gồm đúng 12 chữ số."
+        if (!/^0[0-9]{9}$/.test(hhMemberForm.phone_number)) errs.phone_number = "SĐT không hợp lệ. VD: 0912345678"
+        if (!hhMemberForm.date_of_birth) errs.date_of_birth = "Vui lòng nhập ngày sinh."
+        setHhErrors(errs)
+        if (Object.keys(errs).length > 0) { setHhLoading(false); return }
+
+        title = `Yêu cầu thêm nhân khẩu: ${hhMemberForm.full_name}`
+        description = JSON.stringify({
+          request_type: "add_member",
+          ...hhMemberForm,
+          date_of_birth: new Date(hhMemberForm.date_of_birth).toISOString(),
+        })
+      } else {
+        title = `Yêu cầu thay đổi trạng thái cư trú: ${STATUS_LABELS[hhStatusForm.new_status]}`
+        description = JSON.stringify({
+          request_type: "change_status",
+          new_status: hhStatusForm.new_status,
+        })
+      }
+
+      await api.post("/tickets", {
+        resident_id: me._id,
+        apartment_id: myApt._id,
+        category: "household_change",
+        title,
+        description,
+      })
+
+      setIsHouseholdOpen(false)
+      setHhMemberForm({ full_name: "", identity_card: "", phone_number: "", date_of_birth: "", email: "", relationship: "family" })
+      toast.success("Đã gửi yêu cầu! Ban quản lý sẽ xem xét và phản hồi sớm nhất.")
+    } catch (err: any) {
+      toast.error(extractErrorMessage(err, "Lỗi gửi yêu cầu."))
+    } finally {
+      setHhLoading(false)
     }
   }
 
@@ -430,7 +491,7 @@ export default function ProfilePage() {
           <Button
             variant="outline"
             className="h-16 flex-1 flex-col gap-1.5 transition-all hover:border-primary/30 hover:bg-primary/5"
-            onClick={() => toast.info("Tính năng đang được phát triển.")}
+            onClick={() => { setIsHouseholdOpen(true); setHhType("add_member"); setHhErrors({}) }}
           >
             <Users className="h-5 w-5 text-primary" />
             <span className="text-[11px] font-medium">Thay đổi nhân khẩu</span>
@@ -522,6 +583,106 @@ export default function ProfilePage() {
               </Button>
               <Button type="submit" className="flex-1 font-bold">
                 Gửi yêu cầu
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Household Change Dialog */}
+      <Dialog open={isHouseholdOpen} onOpenChange={v => { setIsHouseholdOpen(v); setHhErrors({}) }}>
+        <DialogContent className="mx-auto w-[92vw] rounded-2xl p-5 sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <ClipboardList className="h-5 w-5 text-primary" /> Yêu cầu thay đổi nhân khẩu
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Type Selector */}
+          <div className="flex gap-2 rounded-xl bg-muted/50 p-1">
+            <button
+              type="button"
+              onClick={() => { setHhType("add_member"); setHhErrors({}) }}
+              className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-all ${
+                hhType === "add_member" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >Thêm người mới vào hộ</button>
+            <button
+              type="button"
+              onClick={() => { setHhType("change_status"); setHhErrors({}) }}
+              className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-all ${
+                hhType === "change_status" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >Thay đổi trạng thái cư trú</button>
+          </div>
+
+          <form onSubmit={handleHouseholdSubmit} className="space-y-3 pt-1" noValidate>
+            {hhType === "add_member" ? (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1 col-span-2">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Họ và tên <span className="text-destructive">*</span></Label>
+                    <Input value={hhMemberForm.full_name} onChange={e => setHhMemberForm(f => ({ ...f, full_name: e.target.value }))} placeholder="Nguyễn Văn A" className={hhErrors.full_name ? "border-destructive" : ""} />
+                    <FieldError msg={hhErrors.full_name} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">CCCD <span className="text-destructive">*</span></Label>
+                    <Input value={hhMemberForm.identity_card} onChange={e => setHhMemberForm(f => ({ ...f, identity_card: e.target.value }))} placeholder="012345678901" maxLength={12} className={`font-mono ${hhErrors.identity_card ? "border-destructive" : ""}`} />
+                    <FieldError msg={hhErrors.identity_card} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">SĐT <span className="text-destructive">*</span></Label>
+                    <Input value={hhMemberForm.phone_number} onChange={e => setHhMemberForm(f => ({ ...f, phone_number: e.target.value }))} placeholder="0912345678" className={hhErrors.phone_number ? "border-destructive" : ""} />
+                    <FieldError msg={hhErrors.phone_number} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ngày sinh <span className="text-destructive">*</span></Label>
+                    <Input type="date" value={hhMemberForm.date_of_birth} onChange={e => setHhMemberForm(f => ({ ...f, date_of_birth: e.target.value }))} className={hhErrors.date_of_birth ? "border-destructive" : ""} />
+                    <FieldError msg={hhErrors.date_of_birth} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quan hệ</Label>
+                    <Select value={hhMemberForm.relationship} onValueChange={v => setHhMemberForm(f => ({ ...f, relationship: v }))}>
+                      <SelectTrigger className="bg-muted/50"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="family">Người thân</SelectItem>
+                        <SelectItem value="tenant">Người thuê</SelectItem>
+                        <SelectItem value="owner">Chủ hộ</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <p className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                  ℹ️ Yêu cầu sẽ được gửi đến ban quản lý để xem xét và duyệt. Sau khi duyệt, tài khoản đăng nhập sẽ được tạo cho người mới.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="rounded-xl bg-muted/40 p-3 text-sm space-y-1">
+                  <p className="font-medium">Trạng thái hiện tại</p>
+                  <p className="text-muted-foreground">{STATUS_LABELS[me?.temporary_residence_status] || me?.temporary_residence_status}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Trạng thái mới</Label>
+                  <Select value={hhStatusForm.new_status} onValueChange={v => setHhStatusForm({ new_status: v })}>
+                    <SelectTrigger className="bg-muted/50"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="registered">Thường trú</SelectItem>
+                      <SelectItem value="temporary">Tạm trú</SelectItem>
+                      <SelectItem value="temporary_absent">Tạm vắng</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                  ℹ️ Yêu cầu thay đổi trạng thái cần được ban quản lý xác nhận trước khi có hiệu lực.
+                </p>
+              </>
+            )}
+
+            <DialogFooter className="gap-2 pt-1">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setIsHouseholdOpen(false)}>Hủy</Button>
+              <Button type="submit" className="flex-1 font-bold" disabled={hhLoading}>
+                {hhLoading ? "Đang gửi..." : "Gửi yêu cầu"}
               </Button>
             </DialogFooter>
           </form>

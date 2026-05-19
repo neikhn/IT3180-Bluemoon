@@ -14,11 +14,12 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Handle 401 globally
+// Handle 401 globally — but NOT for login endpoint (let LoginPage handle it)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const isLoginRequest = error.config?.url?.includes("/auth/login")
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem("bluemoon_token")
       localStorage.removeItem("bluemoon_user")
       window.location.href = "/login"

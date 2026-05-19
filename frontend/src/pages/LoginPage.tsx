@@ -12,11 +12,13 @@ export default function LoginPage() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
   const navigate = useNavigate()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError("")
     try {
       const user = await login(username, password)
       toast.success(`Chào mừng, ${user.full_name || user.username}!`)
@@ -29,7 +31,8 @@ export default function LoginPage() {
         navigate("/resident/feed")
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || "Đăng nhập thất bại."
+      const msg = err?.response?.data?.detail || "Đăng nhập thất bại. Vui lòng thử lại."
+      setError(msg)
       toast.error(msg)
     } finally {
       setLoading(false)
@@ -84,6 +87,16 @@ export default function LoginPage() {
                   autoComplete="current-password"
                 />
               </div>
+
+              {error && (
+                <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive animate-in fade-in slide-in-from-top-1 duration-200">
+                  <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  {error}
+                </div>
+              )}
+
               <Button
                 type="submit"
                 className="mt-2 h-12 w-full rounded-xl text-base font-bold tracking-wide shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
@@ -110,7 +123,7 @@ export default function LoginPage() {
                 <span className="font-mono font-bold text-foreground">admin</span> / <span className="font-mono font-bold text-foreground">admin123</span> → Admin
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                <span className="font-mono font-bold text-foreground">ketoan</span> / <span className="font-mono font-bold text-foreground">ketoan123</span> → Kế toán
+                <span className="font-mono font-bold text-foreground">ketoan</span> / <span className="font-mono font-bold text-foreground">8M$njWBTf8t7</span> → Kế toán
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 <span className="font-mono font-bold text-foreground">resident1</span> / <span className="font-mono font-bold text-foreground">resident123</span> → Cư dân

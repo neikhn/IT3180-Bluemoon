@@ -19,6 +19,7 @@ import VehiclesPage from "./pages/VehiclesPage"
 import TicketsPage from "./pages/TicketsPage"
 import NotificationsPage from "./pages/NotificationsPage"
 import AuditLogsPage from "./pages/AuditLogsPage"
+import AccountsPage from "./pages/AccountsPage"
 
 // Accountant Pages
 import AccountantDashboardPage from "./pages/accountant/AccountantDashboardPage"
@@ -53,6 +54,7 @@ function App() {
           <Route path="tickets" element={<TicketsPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="audit-logs" element={<AuditLogsPage />} />
+          <Route path="accounts" element={<AccountsPage />} />
         </Route>
 
         {/* Resident Route */}

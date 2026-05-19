@@ -193,28 +193,144 @@ async def update_ticket_status(ticket_id: PydanticObjectId, payload: TicketStatu
     await ticket.save()
     return ticket
 
-@router.post("/tickets/{ticket_id}/approve", response_model=Ticket)
+@router.post("/tickets/{ticket_id}/approve", response_model=dict)
 async def approve_ticket(ticket_id: PydanticObjectId, request: Request):
-    """Admin duyệt ticket đăng ký xe → Tự động tạo Vehicle."""
-    from models.vehicle import Vehicle, ChangeHistory as VehicleHistory
-    
+    """Admin duyệt ticket — hỗ trợ vehicle_registration và household_change."""
     ticket = await Ticket.get(ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket không tồn tại")
-    
-    if ticket.category != "vehicle_registration":
-        raise HTTPException(status_code=400, detail="Chỉ có thể approve ticket loại đăng ký phương tiện.")
-    
+
     if ticket.status == "closed":
         raise HTTPException(status_code=400, detail="Ticket này đã được đóng.")
 
+    # ── household_change ──────────────────────────────────────────────────────
+    if ticket.category == "household_change":
+        import json
+        try:
+            hh_data = json.loads(ticket.description)
+        except (json.JSONDecodeError, ValueError):
+            raise HTTPException(status_code=400, detail="Dữ liệu ticket không hợp lệ.")
+
+        req_type = hh_data.get("request_type", "")
+        actor = await get_actor_from_request(request)
+        admin_id = actor.get("actor_id") or ticket.resident_id
+
+        if req_type == "add_member":
+            # Tạo cư dân mới và thêm vào căn hộ
+            from models.resident import Resident, ResidentHistory
+            from models.apartment import Apartment, MinimalResidentInfo
+            from datetime import datetime as dt
+
+            # Kiểm tra CCCD đã tồn tại chưa
+            cccd = hh_data.get("identity_card", "")
+            existing_cccd = await Resident.find_one(Resident.identity_card == cccd)
+            if existing_cccd:
+                raise HTTPException(status_code=400, detail="CCCD này đã tồn tại trong hệ thống.")
+
+            apartment = await Apartment.get(ticket.apartment_id)
+            if not apartment:
+                raise HTTPException(status_code=404, detail="Căn hộ không tồn tại.")
+
+            relationship = hh_data.get("relationship", "family")
+            if relationship == "owner":
+                has_owner = any(r.relationship == "owner" and r.status == "living" for r in apartment.current_residents)
+                if has_owner:
+                    raise HTTPException(status_code=400, detail="Căn hộ đã có chủ hộ.")
+
+            new_resident = Resident(
+                full_name=hh_data.get("full_name", ""),
+                date_of_birth=dt.fromisoformat(hh_data.get("date_of_birth")),
+                identity_card=cccd,
+                phone_number=hh_data.get("phone_number", ""),
+                email=hh_data.get("email") or None,
+                temporary_residence_status="registered",
+            )
+            new_resident.change_history.append(ResidentHistory(
+                changes_summary=f"Tạo qua ticket {ticket.ticket_code}",
+                changed_by=actor.get("actor_username", "admin")
+            ))
+            await new_resident.insert()
+
+            apartment.current_residents.append(MinimalResidentInfo(
+                resident_id=new_resident.id,
+                full_name=new_resident.full_name,
+                relationship=relationship,
+                status="living",
+                move_in_date=dt.utcnow()
+            ))
+            living_count = sum(1 for cr in apartment.current_residents if cr.status == "living")
+            if living_count > 0 and apartment.status == "available":
+                apartment.status = "occupied"
+            await apartment.save()
+
+            ticket.status = "closed"
+            ticket.updated_at = datetime.utcnow()
+            ticket.responses.append(TicketResponse(
+                sender_role="admin",
+                sender_id=admin_id,
+                message=f"✅ Đã duyệt thêm nhân khẩu {new_resident.full_name} vào căn hộ. Vui lòng tạo tài khoản đăng nhập cho người này."
+            ))
+            await ticket.save()
+            await log_action(
+                action="approve",
+                resource_type="ticket",
+                resource_id=str(ticket_id),
+                description=f"Duyệt thêm nhân khẩu [{new_resident.full_name}] từ ticket [{ticket.ticket_code}]",
+                actor_id=actor["actor_id"],
+                actor_username=actor["actor_username"],
+                actor_role=actor["actor_role"]
+            )
+            # Trả về ticket + new_resident_id để frontend redirect tạo tài khoản
+            ticket_dict = ticket.model_dump()
+            ticket_dict["id"] = str(ticket.id)
+            return {**ticket_dict, "new_resident_id": str(new_resident.id), "new_resident_name": new_resident.full_name}
+
+        elif req_type in ("change_status", "temporary_absent"):
+            # Cập nhật trạng thái cư trú của cư dân
+            from models.resident import Resident
+            resident = await Resident.get(ticket.resident_id)
+            if resident:
+                new_status = hh_data.get("new_status", "registered")
+                resident.temporary_residence_status = new_status
+                resident.updated_at = datetime.utcnow()
+                await resident.save()
+
+            ticket.status = "closed"
+            ticket.updated_at = datetime.utcnow()
+            ticket.responses.append(TicketResponse(
+                sender_role="admin",
+                sender_id=admin_id,
+                message=f"✅ Đã duyệt yêu cầu thay đổi trạng thái cư trú."
+            ))
+            await ticket.save()
+            await log_action(
+                action="approve",
+                resource_type="ticket",
+                resource_id=str(ticket_id),
+                description=f"Duyệt thay đổi trạng thái cư trú từ ticket [{ticket.ticket_code}]",
+                actor_id=actor["actor_id"],
+                actor_username=actor["actor_username"],
+                actor_role=actor["actor_role"]
+            )
+            ticket_dict = ticket.model_dump()
+            ticket_dict["id"] = str(ticket.id)
+            return ticket_dict
+        else:
+            raise HTTPException(status_code=400, detail="Loại yêu cầu không hợp lệ.")
+
+    # ── vehicle_registration ──────────────────────────────────────────────────
+    if ticket.category != "vehicle_registration":
+        raise HTTPException(status_code=400, detail="Chỉ có thể approve ticket loại đăng ký phương tiện hoặc thay đổi nhân khẩu.")
+
     # Parse vehicle info từ description (format JSON-like trong description)
     # Ticket description chứa JSON: {"license_plate": "...", "vehicle_type": "...", "vehicle_name": "..."}
+    from models.vehicle import Vehicle, ChangeHistory as VehicleHistory
     import json
     try:
         vehicle_data = json.loads(ticket.description)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Không thể đọc dữ liệu phương tiện từ ticket. Format không hợp lệ.")
+
 
     sanitized_plate = vehicle_data.get("license_plate", "").upper().replace(" ", "")
     existing = await Vehicle.find_one(Vehicle.license_plate == sanitized_plate, Vehicle.status != "inactive")
@@ -269,7 +385,9 @@ async def approve_ticket(ticket_id: PydanticObjectId, request: Request):
         actor_username=actor["actor_username"], 
         actor_role=actor["actor_role"]
     )
-    return ticket
+    ticket_dict = ticket.model_dump()
+    ticket_dict["id"] = str(ticket.id)
+    return ticket_dict
 
 class RejectPayload(BaseModel):
     reason: str

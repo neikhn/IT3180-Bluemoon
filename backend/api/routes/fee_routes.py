@@ -493,3 +493,25 @@ async def delete_invoice(invoice_id: PydanticObjectId):
         raise HTTPException(status_code=400, detail="Không thể xóa hóa đơn đã thanh toán.")
     await invoice.delete()
     return {"message": "Đã xóa hóa đơn."}
+
+class ResidentPayPayload(BaseModel):
+    payment_method: str = "bank_transfer"  # 'bank_transfer', 'cash', 'e_wallet'
+
+@router.post("/invoices/{invoice_id}/pay", response_model=Invoice)
+async def resident_pay_invoice(invoice_id: PydanticObjectId, payload: ResidentPayPayload):
+    """Cư dân tự xác nhận thanh toán hóa đơn (simulate online payment)."""
+    invoice = await Invoice.get(invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Không tìm thấy hóa đơn.")
+    if invoice.status == "paid":
+        raise HTTPException(status_code=400, detail="Hóa đơn này đã được thanh toán.")
+    if invoice.status == "cancelled":
+        raise HTTPException(status_code=400, detail="Hóa đơn đã bị hủy.")
+
+    invoice.status = "paid"
+    invoice.paid_amount = invoice.amount_due
+    invoice.paid_date = datetime.utcnow()
+    invoice.payment_method = payload.payment_method
+    invoice.updated_at = datetime.utcnow()
+    await invoice.save()
+    return invoice

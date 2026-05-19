@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import {
   Home, Building2, Users, Ticket, Bell, Car, LogOut, Menu, X,
-  LayoutDashboard, ChevronRight, History
+  LayoutDashboard, ChevronRight, History, UserCog
 } from "lucide-react"
 import { cn } from "../lib/utils"
 import { Button } from "../components/ui/button"
@@ -17,6 +17,7 @@ const menuItems = [
   { title: "Ticket hỗ trợ", icon: Ticket, path: "/dashboard/tickets" },
   { title: "Thông báo", icon: Bell, path: "/dashboard/notifications" },
   { title: "Nhật ký hệ thống", icon: History, path: "/dashboard/audit-logs" },
+  { title: "Quản lý tài khoản", icon: UserCog, path: "/dashboard/accounts" },
 ]
 
 function getBreadcrumb(pathname: string) {

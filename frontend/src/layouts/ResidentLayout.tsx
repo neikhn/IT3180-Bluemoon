@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
-import { Ticket, User, Bell, LogOut, Moon, Sun } from "lucide-react"
+import { Ticket, User, Bell, LogOut, Moon, Sun, Receipt } from "lucide-react"
 import { cn } from "../lib/utils"
 import { Button } from "../components/ui/button"
 import { useTheme } from "../components/theme-provider"
@@ -22,6 +22,7 @@ export default function ResidentLayout() {
   const navItems = [
     { name: "Thông báo", path: "/resident/feed", icon: Bell },
     { name: "Yêu cầu", path: "/resident/tickets", icon: Ticket },
+    { name: "Phí & HĐ", path: "/resident/fees", icon: Receipt },
     { name: "Hồ sơ", path: "/resident/profile", icon: User },
   ]
 
