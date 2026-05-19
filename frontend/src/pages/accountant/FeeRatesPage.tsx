@@ -20,6 +20,7 @@ const FEE_LABELS: Record<string, string> = {
   water: "Tiền nước",
   parking_car: "Phí ô tô",
   parking_motorbike: "Phí xe máy",
+  charity: "Thiện nguyện",
 }
 
 const UNIT_LABELS: Record<string, string> = {

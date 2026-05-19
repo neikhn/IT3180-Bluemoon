@@ -415,25 +415,17 @@ export default function ProfilePage() {
             Các yêu cầu sẽ được gửi dưới dạng Ticket cho ban quản lý xét duyệt.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex gap-3">
+        <CardContent>
           <Button
             variant="outline"
-            className="h-16 flex-1 flex-col gap-1.5 transition-all hover:border-primary/30 hover:bg-primary/5"
+            className="h-12 w-full gap-2 transition-all hover:border-primary/30 hover:bg-primary/5 font-semibold text-sm rounded-lg flex items-center justify-center"
             onClick={() => {
               setVehErrors({})
               setIsVehicleOpen(true)
             }}
           >
-            <Car className="h-5 w-5 text-primary" />
-            <span className="text-[11px] font-medium">Đăng ký phương tiện</span>
-          </Button>
-          <Button
-            variant="outline"
-            className="h-16 flex-1 flex-col gap-1.5 transition-all hover:border-primary/30 hover:bg-primary/5"
-            onClick={() => toast.info("Tính năng đang được phát triển.")}
-          >
-            <Users className="h-5 w-5 text-primary" />
-            <span className="text-[11px] font-medium">Thay đổi nhân khẩu</span>
+            <Car className="h-4 w-4 text-primary" />
+            Đăng ký phương tiện
           </Button>
         </CardContent>
       </Card>

@@ -3,6 +3,13 @@ import { api } from "../lib/axios"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Skeleton } from "../components/ui/skeleton"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select"
+import {
   Building2,
   Users,
   Ticket,
@@ -13,6 +20,9 @@ import {
   ArrowDown,
   TrendingUp,
   AlertTriangle,
+  PieChart as PieChartIcon,
+  BarChart3,
+  Wallet,
 } from "lucide-react"
 import {
   BarChart,
@@ -20,6 +30,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -27,39 +38,18 @@ import {
   LineChart,
   Line,
 } from "recharts"
-
-const CHART_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-]
-
-const RADIAN = Math.PI / 180
-function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
-  if (percent < 0.05) return null
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
-  const x = cx + radius * Math.cos(-midAngle * RADIAN)
-  const y = cy + radius * Math.sin(-midAngle * RADIAN)
-  return (
-    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight="bold">
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
-  )
-}
-
-function formatVND(n: number) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
-  return `${n}`
-}
+import { ChartCard } from "../components/charts/ChartCard"
+import { CHART_COLORS, formatVND, vndTooltip, PiePercentLabel } from "../lib/chart-utils"
 
 export default function DashboardPage() {
   const [status, setStatus] = useState("Đang kiểm tra...")
   const [isOnline, setIsOnline] = useState(true)
   const [loading, setLoading] = useState(true)
+  const [loadingCharts, setLoadingCharts] = useState(true)
   const [data, setData] = useState<any>(null)
+  const [chartData, setChartData] = useState<any>(null)
+  const currentYear = new Date().getFullYear()
+  const [year, setYear] = useState(currentYear)
 
   useEffect(() => {
     api.get("/dashboard/stats")
@@ -74,6 +64,14 @@ export default function DashboardPage() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    setLoadingCharts(true)
+    api.get(`/dashboard/charts?year=${year}`)
+      .then((res) => setChartData(res.data))
+      .catch(() => {})
+      .finally(() => setLoadingCharts(false))
+  }, [year])
 
   const counts = data?.counts ?? {}
 
@@ -182,7 +180,7 @@ export default function DashboardPage() {
                   <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={formatVND} />
                   <Tooltip
                     contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", fontSize: "12px" }}
-                    formatter={(value: unknown) => [`${Number(value).toLocaleString("vi-VN")} đ`, ""]}
+                    formatter={(value: any) => [`${Number(value).toLocaleString("vi-VN")} đ`, ""]}
                   />
                   <Line type="monotone" dataKey="billed" stroke="var(--chart-1)" strokeWidth={2.5} dot={{ r: 4 }} name="Tổng chi" />
                   <Line type="monotone" dataKey="collected" stroke="var(--chart-2)" strokeWidth={2.5} dot={{ r: 4 }} name="Đã thu" />
@@ -217,7 +215,7 @@ export default function DashboardPage() {
                       startAngle={90}
                       endAngle={-270}
                       labelLine={false}
-                      label={CustomLabel}
+                      label={PiePercentLabel}
                     >
                       <Cell fill="var(--primary)" />
                       <Cell fill="var(--muted)" />
@@ -251,7 +249,7 @@ export default function DashboardPage() {
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={100} />
                   <Tooltip
                     contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", fontSize: "12px" }}
-                    formatter={(value: unknown) => [`${value}`, "Số ticket"]}
+                    formatter={(value: any) => [`${value}`, "Số ticket"]}
                   />
                   <Bar dataKey="value" fill="var(--chart-3)" radius={[0, 8, 8, 0]} barSize={20} />
                 </BarChart>
@@ -282,7 +280,7 @@ export default function DashboardPage() {
                     outerRadius={75}
                     dataKey="value"
                     labelLine={false}
-                    label={CustomLabel}
+                    label={PiePercentLabel}
                   >
                     {(data?.collectionData ?? []).map((_: any, i: number) => (
                       <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
@@ -290,7 +288,7 @@ export default function DashboardPage() {
                   </Pie>
                   <Tooltip
                     contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", fontSize: "12px" }}
-                    formatter={(value: unknown) => [`${Number(value).toLocaleString("vi-VN")} đ`, ""]}
+                    formatter={(value: any) => [`${Number(value).toLocaleString("vi-VN")} đ`, ""]}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -329,7 +327,7 @@ export default function DashboardPage() {
                 <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={formatVND} />
                 <Tooltip
                   contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", fontSize: "12px" }}
-                  formatter={(value: unknown) => [`${Number(value).toLocaleString("vi-VN")} đ`, "Công nợ"]}
+                  formatter={(value: any) => [`${Number(value).toLocaleString("vi-VN")} đ`, "Công nợ"]}
                 />
                 <Bar dataKey="value" fill="var(--chart-5)" radius={[6, 6, 0, 0]} barSize={50} />
               </BarChart>
@@ -337,6 +335,189 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ═══════════════════ DETAILED CHARTS ═══════════════════ */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold tracking-tight">Thống kê chi tiết</h3>
+          <p className="text-sm text-muted-foreground">Dữ liệu theo năm và loại phí.</p>
+        </div>
+        <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+          <SelectTrigger className="w-[120px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
+              <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Revenue by Year */}
+      <ChartCard title="Doanh thu theo năm" icon={BarChart3} loading={loadingCharts}>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={chartData?.revenueByYear ?? []}>
+            <XAxis dataKey="year" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={formatVND} />
+            <Tooltip
+              contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", fontSize: "12px" }}
+              formatter={(value: any, name: any) => [vndTooltip(value), name === "billed" ? "Tổng chi" : "Đã thu"]}
+            />
+            <Legend formatter={(value) => value === "billed" ? "Tổng chi" : "Đã thu"} />
+            <Bar dataKey="billed" fill="var(--chart-1)" radius={[4, 4, 0, 0]} barSize={30} />
+            <Bar dataKey="collected" fill="var(--chart-2)" radius={[4, 4, 0, 0]} barSize={30} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      {/* Occupancy by Block + Revenue by Fee Type */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <ChartCard title="Tỷ lệ lấp đầy theo block" icon={Building2} loading={loadingCharts}>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={chartData?.occupancyByBlock ?? []}>
+              <XAxis dataKey="block" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Tooltip
+                contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", fontSize: "12px" }}
+              />
+              <Legend />
+              <Bar dataKey="occupied" stackId="a" fill="var(--chart-2)" name="Đang ở" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="available" stackId="a" fill="var(--chart-3)" name="Trống" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="maintenance" stackId="a" fill="var(--chart-5)" name="Bảo trì" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Doanh thu theo loại phí" icon={PieChartIcon} loading={loadingCharts}>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={chartData?.revenueByFeeType ?? []}
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={80}
+                dataKey="value"
+                labelLine={false}
+                label={PiePercentLabel}
+              >
+                {(chartData?.revenueByFeeType ?? []).map((_: any, i: number) => (
+                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", fontSize: "12px" }}
+                formatter={(value: any) => [vndTooltip(value), ""]}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          {chartData?.revenueByFeeType && (
+            <div className="mt-2 flex flex-wrap justify-center gap-3">
+              {chartData.revenueByFeeType.map((item: any, i: number) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-2.5 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                  <span className="text-xs text-muted-foreground">{item.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </ChartCard>
+      </div>
+
+      {/* Collection by Month */}
+      <ChartCard title={`Tỷ lệ thu phí theo tháng (${year})`} icon={Wallet} loading={loadingCharts}>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={chartData?.collectionByMonth ?? []}>
+            <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={formatVND} />
+            <Tooltip
+              contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", fontSize: "12px" }}
+              formatter={(value: any, name: any) => {
+                const labels: Record<string, string> = { paid: "Đã thu", pending: "Chưa thu", cancelled: "Đã hủy" }
+                return [vndTooltip(value), labels[name as keyof typeof labels] || name]
+              }}
+            />
+            <Legend formatter={(value: string) => {
+              const labels: Record<string, string> = { paid: "Đã thu", pending: "Chưa thu", cancelled: "Đã hủy" }
+              return labels[value as keyof typeof labels] || value
+            }} />
+            <Bar dataKey="paid" stackId="a" fill="var(--chart-2)" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="pending" stackId="a" fill="var(--chart-3)" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="cancelled" stackId="a" fill="var(--chart-5)" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      {/* Payment Method */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <ChartCard title="Phương thức thanh toán" icon={PieChartIcon} loading={loadingCharts}>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={chartData?.paymentMethod ?? []}
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={80}
+                dataKey="value"
+                labelLine={false}
+                label={PiePercentLabel}
+              >
+                {(chartData?.paymentMethod ?? []).map((_: any, i: number) => (
+                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", fontSize: "12px" }}
+                formatter={(value: any) => [`${value} lượt`, ""]}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          {chartData?.paymentMethod && (
+            <div className="mt-2 flex flex-wrap justify-center gap-3">
+              {chartData.paymentMethod.map((item: any, i: number) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-2.5 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                  <span className="text-xs text-muted-foreground">{item.name}</span>
+                  <span className="text-xs font-semibold">{item.value} lượt</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </ChartCard>
+
+        {/* Summary KPI for selected year */}
+        <ChartCard title={`Tổng quan năm ${year}`} icon={TrendingUp} loading={loadingCharts}>
+          <div className="space-y-4">
+            {(chartData?.revenueByYear ?? []).filter((r: any) => r.year === String(year)).map((r: any) => (
+              <div key={r.year} className="space-y-3">
+                <div className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-3">
+                  <span className="text-sm text-muted-foreground">Tổng hóa đơn</span>
+                  <span className="text-lg font-bold">{formatVND(r.billed)} đ</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-3">
+                  <span className="text-sm text-muted-foreground">Đã thu</span>
+                  <span className="text-lg font-bold text-emerald-600">{formatVND(r.collected)} đ</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-3">
+                  <span className="text-sm text-muted-foreground">Chưa thu</span>
+                  <span className="text-lg font-bold text-red-500">{formatVND(r.billed - r.collected)} đ</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-primary/5 px-4 py-3">
+                  <span className="text-sm font-medium">Tỷ lệ thu</span>
+                  <span className="text-lg font-bold text-primary">
+                    {r.billed > 0 ? ((r.collected / r.billed) * 100).toFixed(1) : 0}%
+                  </span>
+                </div>
+              </div>
+            ))}
+            {(!chartData?.revenueByYear || chartData.revenueByYear.length === 0) && (
+              <p className="text-sm text-muted-foreground text-center py-8">Chưa có dữ liệu năm {year}</p>
+            )}
+          </div>
+        </ChartCard>
+      </div>
     </div>
   )
 }

@@ -1,9 +1,21 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
-import { Ticket, User, Bell, LogOut, Moon, Sun } from "lucide-react"
+import { Ticket, User, Bell, LogOut, Moon, Sun, Users } from "lucide-react"
 import { cn } from "../lib/utils"
 import { Button } from "../components/ui/button"
 import { useTheme } from "../components/theme-provider"
-import { clearAuth } from "../lib/auth"
+import { clearAuth, getStoredUser, setStoredUser } from "../lib/auth"
+import { useState } from "react"
+import { toast } from "sonner"
+import { api } from "../lib/axios"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "../components/ui/dialog"
+import { Input } from "../components/ui/input"
+import { Label } from "../components/ui/label"
 
 export default function ResidentLayout() {
   const location = useLocation()
@@ -19,10 +31,59 @@ export default function ResidentLayout() {
     setTheme(theme === "dark" ? "light" : "dark")
   }
 
+  const user = getStoredUser()
+  const [showForcePasswordChange, setShowForcePasswordChange] = useState(!!user?.needs_password_change)
+  const [passForm, setPassForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  })
+  const [loading, setLoading] = useState(false)
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+
+    if (!passForm.currentPassword || !passForm.newPassword || !passForm.confirmPassword) {
+      toast.error("Vui lòng điền đầy đủ thông tin.")
+      return
+    }
+
+    if (passForm.newPassword !== passForm.confirmPassword) {
+      toast.error("Mật khẩu mới và xác nhận mật khẩu không trùng khớp.")
+      return
+    }
+
+    if (passForm.newPassword.length < 6) {
+      toast.error("Mật khẩu mới phải có tối thiểu 6 ký tự.")
+      return
+    }
+
+    setLoading(true)
+    try {
+      await api.patch(`/accounts/${user.id}/password`, {
+        current_password: passForm.currentPassword,
+        new_password: passForm.newPassword
+      })
+      
+      const updatedUser = { ...user, needs_password_change: false }
+      setStoredUser(updatedUser)
+      
+      toast.success("Đổi mật khẩu thành công!")
+      setShowForcePasswordChange(false)
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại."
+      toast.error(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const navItems = [
     { name: "Thông báo", path: "/resident/feed", icon: Bell },
-    { name: "Yêu cầu", path: "/resident/tickets", icon: Ticket },
     { name: "Hồ sơ", path: "/resident/profile", icon: User },
+    { name: "Thành viên", path: "/resident/members", icon: Users },
+    { name: "Yêu cầu", path: "/resident/tickets", icon: Ticket },
   ]
 
   return (
@@ -100,6 +161,68 @@ export default function ResidentLayout() {
           })}
         </div>
       </nav>
+
+      {/* Dialog đổi mật khẩu bắt buộc */}
+      <Dialog open={showForcePasswordChange} onOpenChange={() => {}}>
+        <DialogContent 
+          className="mx-auto w-[92vw] rounded-2xl p-5 sm:max-w-md" 
+          showCloseButton={false}
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-center">Đổi mật khẩu lần đầu</DialogTitle>
+            <DialogDescription className="text-xs text-center">
+              Tài khoản của bạn được cấp phát tự động. Vui lòng đổi mật khẩu mới để tiếp tục sử dụng dịch vụ.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handlePasswordChange} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Mật khẩu hiện tại (Số điện thoại của bạn)</Label>
+              <Input
+                type="password"
+                placeholder="Nhập mật khẩu hiện tại"
+                value={passForm.currentPassword}
+                onChange={(e) => setPassForm({ ...passForm, currentPassword: e.target.value })}
+                className="h-10 text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Mật khẩu mới</Label>
+              <Input
+                type="password"
+                placeholder="Mật khẩu mới (tối thiểu 6 ký tự)"
+                value={passForm.newPassword}
+                onChange={(e) => setPassForm({ ...passForm, newPassword: e.target.value })}
+                className="h-10 text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Xác nhận mật khẩu mới</Label>
+              <Input
+                type="password"
+                placeholder="Nhập lại mật khẩu mới"
+                value={passForm.confirmPassword}
+                onChange={(e) => setPassForm({ ...passForm, confirmPassword: e.target.value })}
+                className="h-10 text-xs"
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="flex-1 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 text-xs h-10"
+                onClick={handleLogout}
+              >
+                Đăng xuất
+              </Button>
+              <Button type="submit" className="flex-1 text-xs h-10" disabled={loading}>
+                {loading ? "Đang lưu..." : "Đổi mật khẩu"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

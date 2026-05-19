@@ -30,8 +30,9 @@ const FEE_LABELS: Record<string, string> = {
   management: "Phí quản lý",
   electricity: "Tiền điện",
   water: "Tiền nước",
-  parking_car: "Phí gửi ô tô",
-  parking_motorbike: "Phí gửi xe máy",
+  parking_car: "Phí ô tô",
+  parking_motorbike: "Phí xe máy",
+  charity: "Thiện nguyện",
 }
 
 function FileTextIcon(props: any) {

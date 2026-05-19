@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from core.db_config import init_db
-from api.routes import apartment_routes, account_routes, resident_routes, vehicle_routes, ticket_routes, notification_routes, fee_routes, dashboard_routes, audit_routes
+from api.routes import apartment_routes, account_routes, resident_routes, vehicle_routes, ticket_routes, notification_routes, fee_routes, dashboard_routes, audit_routes, resident_request_routes
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -31,6 +31,7 @@ app.include_router(notification_routes.router, prefix="/api", tags=["notificatio
 app.include_router(fee_routes.router, prefix="/api", tags=["fees"])
 app.include_router(dashboard_routes.router, prefix="/api", tags=["dashboard"])
 app.include_router(audit_routes.router, prefix="/api", tags=["audit"])
+app.include_router(resident_request_routes.router, prefix="/api", tags=["resident-requests"])
 
 @app.get("/")
 async def root():
