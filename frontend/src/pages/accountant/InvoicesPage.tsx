@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Badge } from "../../components/ui/badge"
-import { Plus, Receipt, CheckCircle2, Clock, XCircle, FileText, Search, Home, Zap, Droplets, Eye, ChevronRight, Car, Bike } from "lucide-react"
+import { Plus, Receipt, CheckCircle2, Clock, XCircle, FileText, Search, Home, Zap, Droplets, Eye, ChevronRight, Car, Bike, Heart, Download } from "lucide-react"
 import { Checkbox } from "../../components/ui/checkbox"
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: any }> = {
@@ -29,6 +29,7 @@ const FEE_ICON_MAP: Record<string, any> = {
   water: Droplets,
   parking_car: Car,
   parking_motorbike: Bike,
+  charity: Heart,
 }
 
 
@@ -48,11 +49,17 @@ export default function InvoicesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedAptIds, setSelectedAptIds] = useState<string[]>([])
   const [appliedFees, setAppliedFees] = useState<string[]>([])
-  const [consumptionMap, setConsumptionMap] = useState<Record<string, { elec: string, water: string }>>({})
+  const [consumptionMap, setConsumptionMap] = useState<Record<string, { elec: string, water: string, charity: string }>>({})
   const [billingPeriod, setBillingPeriod] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear()
   })
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportFormat, setExportFormat] = useState<"xlsx" | "pdf">("xlsx")
+  const [exportScope, setExportScope] = useState<"all" | "month" | "quarter" | "year">("all")
+  const [exportMonth, setExportMonth] = useState<number>(new Date().getMonth() + 1)
+  const [exportQuarter, setExportQuarter] = useState<number>(Math.ceil((new Date().getMonth() + 1) / 3))
+  const [exportYear, setExportYear] = useState<number>(new Date().getFullYear())
 
   const fetchData = () => {
     setLoading(true)
@@ -116,7 +123,7 @@ export default function InvoicesPage() {
 
     const newMap = { ...consumptionMap }
     selectedAptIds.forEach(id => {
-      if (!newMap[id]) newMap[id] = { elec: "0", water: "0" }
+      if (!newMap[id]) newMap[id] = { elec: "0", water: "0", charity: "0" }
     })
     setConsumptionMap(newMap)
     setStep(2)
@@ -127,7 +134,8 @@ export default function InvoicesPage() {
       const items = selectedAptIds.map(id => ({
         apartment_id: id,
         electricity_consumption: Number(consumptionMap[id]?.elec || 0),
-        water_consumption: Number(consumptionMap[id]?.water || 0)
+        water_consumption: Number(consumptionMap[id]?.water || 0),
+        donation_amount: Number(consumptionMap[id]?.charity || 0)
       }))
 
       await api.post("/invoices/bulk-generate", {
@@ -162,6 +170,173 @@ export default function InvoicesPage() {
     return apt ? `${apt.block}-${apt.apartment_number}` : "—"
   }
 
+  const STATUS_MAP: Record<string, string> = {
+    pending: "Chưa thanh toán",
+    paid: "Đã thanh toán",
+    partial: "Thanh toán 1 phần",
+    cancelled: "Đã hủy",
+  }
+
+  const handleExportXLSX = (filteredInvoices: any[], titleSuffix: string, XLSX: any) => {
+    if (filteredInvoices.length === 0) { toast.error("Không có hóa đơn để xuất."); return }
+    const rows = filteredInvoices.map((inv: any) => ({
+      "Mã HĐ": inv.invoice_code,
+      "Căn hộ": getAptName(inv.apartment_id),
+      "Kỳ thanh toán": `${String(inv.billing_period_month).padStart(2, "0")}/${inv.billing_period_year}`,
+      "Tổng tiền (VNĐ)": inv.amount_due,
+      "Đã thanh toán (VNĐ)": inv.paid_amount || 0,
+      "Còn nợ (VNĐ)": inv.amount_due - (inv.paid_amount || 0),
+      "Hạn thanh toán": new Date(inv.due_date).toLocaleDateString("vi-VN"),
+      "Trạng thái": STATUS_MAP[inv.status] || inv.status,
+      "Ngày thanh toán": inv.paid_date ? new Date(inv.paid_date).toLocaleDateString("vi-VN") : "",
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    ws["!cols"] = [
+      { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 18 },
+      { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 14 },
+    ]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Hóa đơn")
+    XLSX.writeFile(wb, `bao-cao-hoa-don-${titleSuffix}-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    toast.success("Đã xuất file Excel!")
+  }
+
+  const loadFonts = async (doc: any) => {
+    try {
+      const [regRes, boldRes] = await Promise.all([
+        fetch("/fonts/Roboto-Regular.ttf"),
+        fetch("/fonts/Roboto-Bold.ttf")
+      ])
+      if (!regRes.ok || !boldRes.ok) {
+        throw new Error("Không thể tải file font từ server.")
+      }
+      const [regBuf, boldBuf] = await Promise.all([
+        regRes.arrayBuffer(),
+        boldRes.arrayBuffer()
+      ])
+      const toBase64 = (buf: ArrayBuffer) => {
+        let binary = ""
+        const bytes = new Uint8Array(buf)
+        const len = bytes.byteLength
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(bytes[i])
+        }
+        return window.btoa(binary)
+      }
+      doc.addFileToVFS("Roboto-Regular.ttf", toBase64(regBuf))
+      doc.addFont("Roboto-Regular.ttf", "Roboto", "normal")
+      doc.addFileToVFS("Roboto-Bold.ttf", toBase64(boldBuf))
+      doc.addFont("Roboto-Bold.ttf", "Roboto", "bold")
+      return true
+    } catch (err) {
+      console.error("Lỗi tải font tiếng Việt:", err)
+      return false
+    }
+  }
+
+  const handleExportPDF = async (filteredInvoices: any[], titleText: string, titleSuffix: string) => {
+    if (filteredInvoices.length === 0) { toast.error("Không có hóa đơn để xuất."); return }
+    const [{ default: jsPDF }, autoTable] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ])
+    const doc = new jsPDF("landscape", "mm", "a4")
+    
+    toast.info("Đang xử lý và tải font tiếng Việt...")
+    const fontsLoaded = await loadFonts(doc)
+    
+    if (fontsLoaded) {
+      doc.setFont("Roboto", "bold")
+    } else {
+      doc.setFont("helvetica", "bold")
+    }
+    
+    doc.setFontSize(16)
+    doc.text(titleText, 148, 15, { align: "center" })
+    doc.setFontSize(10)
+    
+    if (fontsLoaded) {
+      doc.setFont("Roboto", "normal")
+    } else {
+      doc.setFont("helvetica", "normal")
+    }
+    
+    doc.text(`Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}  |  Tổng: ${filteredInvoices.length} hóa đơn`, 148, 22, { align: "center" })
+
+    const head = [[
+      "Mã HĐ", "Căn hộ", "Kỳ", "Tổng tiền", "Đã thu", "Còn nợ", "Hạn TT", "Trạng thái", "Ngày TT",
+    ]]
+    const body = filteredInvoices.map((inv: any) => [
+      inv.invoice_code,
+      getAptName(inv.apartment_id),
+      `${String(inv.billing_period_month).padStart(2, "0")}/${inv.billing_period_year}`,
+      inv.amount_due.toLocaleString("vi-VN"),
+      (inv.paid_amount || 0).toLocaleString("vi-VN"),
+      (inv.amount_due - (inv.paid_amount || 0)).toLocaleString("vi-VN"),
+      new Date(inv.due_date).toLocaleDateString("vi-VN"),
+      STATUS_MAP[inv.status] || inv.status,
+      inv.paid_date ? new Date(inv.paid_date).toLocaleDateString("vi-VN") : "",
+    ])
+
+    autoTable.default(doc, {
+      startY: 28,
+      head,
+      body,
+      styles: { 
+        font: fontsLoaded ? "Roboto" : "helvetica", 
+        fontSize: 8, 
+        cellPadding: 2 
+      },
+      headStyles: { 
+        fillColor: [59, 130, 246], 
+        fontStyle: "bold", 
+        fontSize: 8 
+      },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+      columnStyles: {
+        3: { halign: "right" },
+        4: { halign: "right" },
+        5: { halign: "right" },
+      },
+    })
+
+    doc.save(`bao-cao-hoa-don-${titleSuffix}-${new Date().toISOString().slice(0, 10)}.pdf`)
+    toast.success("Đã xuất file PDF!")
+  }
+
+  const executeExport = async () => {
+    let filtered = [...invoices]
+    let titleText = "BÁO CÁO HÓA ĐƠN"
+    let titleSuffix = "tat-ca"
+
+    if (exportScope === "month") {
+      filtered = invoices.filter(inv => inv.billing_period_month === exportMonth && inv.billing_period_year === exportYear)
+      titleText = `BÁO CÁO HÓA ĐƠN THÁNG ${exportMonth}/${exportYear}`
+      titleSuffix = `thang-${exportMonth}-${exportYear}`
+    } else if (exportScope === "quarter") {
+      filtered = invoices.filter(inv => Math.ceil(inv.billing_period_month / 3) === exportQuarter && inv.billing_period_year === exportYear)
+      titleText = `BÁO CÁO HÓA ĐƠN QUÝ ${exportQuarter}/${exportYear}`
+      titleSuffix = `quy-${exportQuarter}-${exportYear}`
+    } else if (exportScope === "year") {
+      filtered = invoices.filter(inv => inv.billing_period_year === exportYear)
+      titleText = `BÁO CÁO HÓA ĐƠN NĂM ${exportYear}`
+      titleSuffix = `nam-${exportYear}`
+    }
+
+    if (filtered.length === 0) {
+      toast.error("Không có hóa đơn nào khớp với bộ lọc đã chọn.")
+      return
+    }
+
+    if (exportFormat === "xlsx") {
+      const XLSX = await import("xlsx")
+      handleExportXLSX(filtered, titleSuffix, XLSX)
+    } else {
+      await handleExportPDF(filtered, titleText, titleSuffix)
+    }
+    setExportOpen(false)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -169,9 +344,14 @@ export default function InvoicesPage() {
           <h2 className="text-2xl font-bold tracking-tight">Quản lý Hóa đơn</h2>
           <p className="text-muted-foreground text-sm">Hệ thống phát hành hóa đơn tự động định kỳ.</p>
         </div>
-        <Button onClick={() => setGenerateOpen(true)} className="font-bold shadow-sm">
-          <Plus className="h-4 w-4 mr-2" /> Phát hành hóa đơn
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setExportOpen(true)} className="font-bold shadow-sm">
+            <Download className="h-4 w-4 mr-2" /> Xuất báo cáo
+          </Button>
+          <Button onClick={() => setGenerateOpen(true)} className="font-bold shadow-sm">
+            <Plus className="h-4 w-4 mr-2" /> Phát hành hóa đơn
+          </Button>
+        </div>
       </div>
 
       <Card className="border-0 shadow-sm bg-card/50 backdrop-blur-sm overflow-hidden rounded-xl">
@@ -408,6 +588,11 @@ export default function InvoicesPage() {
                               <Droplets className="h-4 w-4 inline mr-2 text-muted-foreground" /> NƯỚC (m³)
                             </th>
                           )}
+                          {appliedFees.includes("charity") && (
+                            <th className="p-4 text-left font-bold text-xs uppercase text-muted-foreground">
+                              <Heart className="h-4 w-4 inline mr-2 text-pink-500" /> ỦNG HỘ (VND)
+                            </th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y">
@@ -444,6 +629,20 @@ export default function InvoicesPage() {
                                   </div>
                                 </td>
                               )}
+                              {appliedFees.includes("charity") && (
+                                <td className="p-4">
+                                  <div className="relative max-w-[150px]">
+                                    <Input
+                                      type="number"
+                                      className="h-10 pr-10 text-sm font-bold rounded-lg border-muted-foreground/20 focus:border-pink-300"
+                                      placeholder="0"
+                                      value={consumptionMap[id]?.charity}
+                                      onChange={e => setConsumptionMap({ ...consumptionMap, [id]: { ...consumptionMap[id], charity: e.target.value } })}
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground">VND</span>
+                                  </div>
+                                </td>
+                              )}
                             </tr>
                           )
                         })}
@@ -462,6 +661,120 @@ export default function InvoicesPage() {
                 </div>
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Config Dialog */}
+      <Dialog open={exportOpen} onOpenChange={(o) => { if (!o) setExportOpen(false) }}>
+        <DialogContent className="mx-auto w-[92vw] rounded-xl p-6 sm:max-w-md border-none shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Download className="h-5 w-5 text-primary" />
+              CẤU HÌNH XUẤT BÁO CÁO HÓA ĐƠN
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <Label className="text-xs uppercase font-bold text-muted-foreground ml-0.5">Định dạng file</Label>
+              <select 
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm" 
+                value={exportFormat} 
+                onChange={(e) => setExportFormat(e.target.value as any)}
+              >
+                <option value="xlsx">📊 File Excel (.xlsx)</option>
+                <option value="pdf">📄 File PDF (.pdf)</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs uppercase font-bold text-muted-foreground ml-0.5">Phạm vi xuất dữ liệu</Label>
+              <select 
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm" 
+                value={exportScope} 
+                onChange={(e) => setExportScope(e.target.value as any)}
+              >
+                <option value="all">Tất cả hóa đơn</option>
+                <option value="month">Theo tháng</option>
+                <option value="quarter">Theo quý</option>
+                <option value="year">Theo năm</option>
+              </select>
+            </div>
+
+            {exportScope === "month" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase font-bold text-muted-foreground ml-0.5">Tháng</Label>
+                  <select 
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                    value={exportMonth}
+                    onChange={(e) => setExportMonth(Number(e.target.value))}
+                  >
+                    {[...Array(12)].map((_, i) => (
+                      <option key={i + 1} value={i + 1}>Tháng {i + 1}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase font-bold text-muted-foreground ml-0.5">Năm</Label>
+                  <Input 
+                    type="number" 
+                    value={exportYear} 
+                    onChange={(e) => setExportYear(Number(e.target.value))} 
+                    placeholder="VD: 2026"
+                  />
+                </div>
+              </div>
+            )}
+
+            {exportScope === "quarter" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase font-bold text-muted-foreground ml-0.5">Quý</Label>
+                  <select 
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                    value={exportQuarter}
+                    onChange={(e) => setExportQuarter(Number(e.target.value))}
+                  >
+                    <option value={1}>Quý 1 (Tháng 1-3)</option>
+                    <option value={2}>Quý 2 (Tháng 4-6)</option>
+                    <option value={3}>Quý 3 (Tháng 7-9)</option>
+                    <option value={4}>Quý 4 (Tháng 10-12)</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase font-bold text-muted-foreground ml-0.5">Năm</Label>
+                  <Input 
+                    type="number" 
+                    value={exportYear} 
+                    onChange={(e) => setExportYear(Number(e.target.value))} 
+                    placeholder="VD: 2026"
+                  />
+                </div>
+              </div>
+            )}
+
+            {exportScope === "year" && (
+              <div className="space-y-1">
+                <Label className="text-xs uppercase font-bold text-muted-foreground ml-0.5">Năm</Label>
+                <Input 
+                  type="number" 
+                  value={exportYear} 
+                  onChange={(e) => setExportYear(Number(e.target.value))} 
+                  placeholder="VD: 2026"
+                />
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-3">
+              <Button variant="outline" className="flex-1 font-bold rounded-lg text-sm" onClick={() => setExportOpen(false)}>
+                HỦY BỎ
+              </Button>
+              <Button className="flex-[2] font-bold rounded-lg text-sm shadow-sm" onClick={executeExport}>
+                XUẤT BÁO CÁO
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

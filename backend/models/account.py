@@ -21,6 +21,7 @@ class Account(Document):
     last_login: Optional[datetime] = None
     login_attempts: int = 0
     locked_until: Optional[datetime] = None
+    needs_password_change: bool = False
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

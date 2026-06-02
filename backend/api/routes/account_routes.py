@@ -61,10 +61,12 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    id: str
     role: str
     username: str
     full_name: Optional[str]
     resident_id: Optional[str]
+    needs_password_change: Optional[bool] = False
 
 # ─── Auth Endpoints ───────────────────────────────────────────────────────────
 
@@ -104,10 +106,12 @@ async def login(payload: LoginRequest):
 
     return LoginResponse(
         access_token=access_token,
+        id=str(account.id),
         role=account.role,
         username=account.username,
         full_name=account.full_name,
         resident_id=str(account.resident_id) if account.resident_id else None,
+        needs_password_change=getattr(account, "needs_password_change", False)
     )
 
 @router.get("/auth/me", response_model=dict)
@@ -282,6 +286,7 @@ async def change_password(
         raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng.")
 
     account.password_hash = bcrypt.hashpw(payload.new_password.encode(), bcrypt.gensalt()).decode()
+    account.needs_password_change = False
     account.updated_at = datetime.utcnow()
     await account.save()
     return {"message": "Đổi mật khẩu thành công."}

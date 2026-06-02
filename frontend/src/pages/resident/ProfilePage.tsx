@@ -236,12 +236,12 @@ export default function ProfilePage() {
   // Residents living in the same apartment
   const housemates = myApt
     ? myApt.current_residents
-        ?.filter((cr: any) => cr.status === "living")
-        .map((cr: any) => {
-          const res = allResidents.find((r) => r._id === cr.resident_id)
-          return res ? { ...res, relationship: cr.relationship } : null
-        })
-        .filter(Boolean)
+      ?.filter((cr: any) => cr.status === "living")
+      .map((cr: any) => {
+        const res = allResidents.find((r) => r._id === cr.resident_id)
+        return res ? { ...res, relationship: cr.relationship } : null
+      })
+      .filter(Boolean)
     : []
 
   if (loading)
@@ -476,10 +476,10 @@ export default function ProfilePage() {
             Các yêu cầu sẽ được gửi dưới dạng Ticket cho ban quản lý xét duyệt.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex gap-3">
+        <CardContent>
           <Button
             variant="outline"
-            className="h-16 flex-1 flex-col gap-1.5 transition-all hover:border-primary/30 hover:bg-primary/5"
+            className="h-12 w-full gap-2 transition-all hover:border-primary/30 hover:bg-primary/5 font-semibold text-sm rounded-lg flex items-center justify-center"
             onClick={() => {
               setVehErrors({})
               setIsVehicleOpen(true)
@@ -603,16 +603,14 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => { setHhType("add_member"); setHhErrors({}) }}
-              className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-all ${
-                hhType === "add_member" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-all ${hhType === "add_member" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
             >Thêm người mới vào hộ</button>
             <button
               type="button"
               onClick={() => { setHhType("change_status"); setHhErrors({}) }}
-              className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-all ${
-                hhType === "change_status" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-all ${hhType === "change_status" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
             >Thay đổi trạng thái cư trú</button>
           </div>
 

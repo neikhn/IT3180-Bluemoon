@@ -19,6 +19,7 @@ import VehiclesPage from "./pages/VehiclesPage"
 import TicketsPage from "./pages/TicketsPage"
 import NotificationsPage from "./pages/NotificationsPage"
 import AuditLogsPage from "./pages/AuditLogsPage"
+import ResidentRequestsPage from "./pages/ResidentRequestsPage"
 import AccountsPage from "./pages/AccountsPage"
 
 // Accountant Pages
@@ -31,6 +32,8 @@ import FeedPage from "./pages/resident/FeedPage"
 import ResidentTicketsPage from "./pages/resident/ResidentTicketsPage"
 import ProfilePage from "./pages/resident/ProfilePage"
 import FeesPage from "./pages/resident/FeesPage"
+import MemberManagementPage from "./pages/resident/MemberManagementPage"
+
 
 function App() {
   return (
@@ -53,6 +56,7 @@ function App() {
           <Route path="vehicles" element={<VehiclesPage />} />
           <Route path="tickets" element={<TicketsPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="resident-requests" element={<ResidentRequestsPage />} />
           <Route path="audit-logs" element={<AuditLogsPage />} />
           <Route path="accounts" element={<AccountsPage />} />
         </Route>
@@ -69,6 +73,7 @@ function App() {
           <Route index element={<Navigate to="feed" replace />} />
           <Route path="feed" element={<FeedPage />} />
           <Route path="tickets" element={<ResidentTicketsPage />} />
+          <Route path="members" element={<MemberManagementPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="fees" element={<FeesPage />} />
         </Route>

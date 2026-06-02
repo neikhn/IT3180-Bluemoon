@@ -11,6 +11,7 @@ interface StoredUser {
   role: UserRole
   full_name?: string
   resident_id?: string
+  needs_password_change?: boolean
 }
 
 export function getToken(): string | null {
@@ -44,19 +45,22 @@ export async function login(username: string, password: string): Promise<StoredU
   const res = await api.post<{
     access_token: string
     token_type: string
+    id: string
     role: UserRole
     username: string
     full_name?: string
     resident_id?: string
+    needs_password_change?: boolean
   }>("/auth/login", { username, password })
 
   setToken(res.data.access_token)
   const user: StoredUser = {
-    id: "", // not returned by login
+    id: res.data.id,
     username: res.data.username,
     role: res.data.role,
     full_name: res.data.full_name,
     resident_id: res.data.resident_id,
+    needs_password_change: res.data.needs_password_change,
   }
   setStoredUser(user)
   return user

@@ -28,8 +28,12 @@ class ResidentCreate(BaseModel):
     temporary_residence_status: str = "registered"
     cccd_front_base64: Optional[str] = None
     cccd_back_base64: Optional[str] = None
-    apartment_id: PydanticObjectId
+    apartment_id: Optional[PydanticObjectId] = None  # optional: không bắt buộc khi tạo accountant
     relationship: str = "tenant"
+    # Tạo tài khoản đi kèm
+    role: str = Field("resident", pattern="^(resident|accountant)$")  # 'resident' hoặc 'accountant'
+    username: Optional[str] = Field(None, min_length=3, max_length=50)  # None = không tạo tài khoản
+    password: Optional[str] = Field(None, min_length=6, max_length=128)  # None = auto-generate
 
 class ResidentUpdate(BaseModel):
     full_name: Optional[str] = None
@@ -57,6 +61,9 @@ async def search_residents(
 
 @router.post("/residents", response_model=Resident, status_code=201)
 async def create_resident(payload: ResidentCreate, request: Request):
+    actor = await get_actor_from_request(request)
+
+    # ─── Validate CCCD ──────────────────────────────────────────────────────────
     if payload.cccd_front_base64:
         validate_base64_size(payload.cccd_front_base64, "Ảnh CCCD mặt trước")
     if payload.cccd_back_base64:
@@ -65,16 +72,42 @@ async def create_resident(payload: ResidentCreate, request: Request):
     if existing_cccd:
         raise HTTPException(status_code=400, detail="CCCD này đã tồn tại trong hệ thống!")
 
-    apartment = await Apartment.get(payload.apartment_id)
-    if not apartment:
-        raise HTTPException(status_code=404, detail="Căn hộ không tồn tại")
+    # ─── Validate apartment & role consistency ─────────────────────────────────
+    apartment = None
+    if payload.role == "resident":
+        # Resident bắt buộc phải có căn hộ
+        if not payload.apartment_id:
+            raise HTTPException(status_code=400, detail="Cư dân phải được gắn vào căn hộ.")
+        apartment = await Apartment.get(payload.apartment_id)
+        if not apartment:
+            raise HTTPException(status_code=404, detail="Căn hộ không tồn tại")
+        # Kiểm tra owner uniqueness
+        if payload.relationship == "owner":
+            has_owner = any(
+                r.relationship == "owner" and r.status == "living"
+                for r in apartment.current_residents
+            )
+            if has_owner:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Căn hộ này đã có chủ hộ! Mỗi phòng chỉ được 1 owner."
+                )
+    elif payload.role == "accountant":
+        # Accountant không cần căn hộ
+        if payload.apartment_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Kế toán không thuộc căn hộ nào. Không truyền apartment_id cho kế toán."
+            )
 
-    # Kiểm tra nếu relationship = owner thì phòng đã có owner chưa
-    if payload.relationship == "owner":
-        has_owner = any(r.relationship == "owner" and r.status == "living" for r in apartment.current_residents)
-        if has_owner:
-            raise HTTPException(status_code=400, detail="Căn hộ này đã có chủ hộ! Mỗi phòng chỉ được 1 owner.")
+    # ─── Validate username uniqueness (nếu được cung cấp) ───────────────────────
+    if payload.username:
+        from models.account import Account
+        existing_user = await Account.find_one(Account.username == payload.username)
+        if existing_user:
+            raise HTTPException(status_code=400, detail=f"Tài khoản '{payload.username}' đã tồn tại!")
 
+    # ─── Create Resident ─────────────────────────────────────────────────────────
     new_resident = Resident(
         full_name=title_case_name(payload.full_name),
         date_of_birth=payload.date_of_birth,
@@ -83,40 +116,82 @@ async def create_resident(payload: ResidentCreate, request: Request):
         email=payload.email,
         temporary_residence_status=payload.temporary_residence_status,
         cccd_front_base64=payload.cccd_front_base64,
-        cccd_back_base64=payload.cccd_back_base64
+        cccd_back_base64=payload.cccd_back_base64,
     )
-    actor = await get_actor_from_request(request)
     new_resident.change_history.append(ResidentHistory(
         changes_summary="Tạo mới hồ sơ",
         changed_by=actor.get("actor_username", "system")
     ))
     await new_resident.insert()
 
-    resident_embed_info = MinimalResidentInfo(
-        resident_id=new_resident.id,
-        full_name=new_resident.full_name,
-        relationship=payload.relationship,
-        status="living",
-        move_in_date=datetime.utcnow()
-    )
-    apartment.current_residents.append(resident_embed_info)
+    # ─── Add to apartment (resident only) ────────────────────────────────────
+    if apartment:
+        resident_embed_info = MinimalResidentInfo(
+            resident_id=new_resident.id,
+            full_name=new_resident.full_name,
+            relationship=payload.relationship,
+            status="living",
+            move_in_date=datetime.utcnow()
+        )
+        apartment.current_residents.append(resident_embed_info)
+        living_count = sum(1 for cr in apartment.current_residents if cr.status == "living")
+        if living_count > 0 and apartment.status == "available":
+            apartment.status = "occupied"
+        await apartment.save()
 
-    living_count = sum(1 for cr in apartment.current_residents if cr.status == "living")
-    if living_count > 0 and apartment.status == "available":
-        apartment.status = "occupied"
+    # ─── Auto-create Account (nếu username được cung cấp) ─────────────────────
+    created_account = None
+    if payload.username:
+        from models.account import Account
+        import bcrypt
+        import secrets
+        import string
 
-    await apartment.save()
-    actor = await get_actor_from_request(request)
+        # Generate password if not provided
+        raw_password = payload.password
+        if not raw_password:
+            # Auto-generate: 8 random characters
+            alphabet = string.ascii_letters + string.digits
+            raw_password = "".join(secrets.choice(alphabet) for _ in range(8))
+
+        password_hash = bcrypt.hashpw(raw_password.encode(), bcrypt.gensalt()).decode()
+
+        created_account = Account(
+            username=payload.username,
+            password_hash=password_hash,
+            role=payload.role,
+            full_name=new_resident.full_name,
+            email=new_resident.email,
+            resident_id=new_resident.id if payload.role == "resident" else None,
+        )
+        await created_account.insert()
+
+        # Link resident → account
+        new_resident.account_id = created_account.id
+        await new_resident.save()
+
+    # ─── Audit log ──────────────────────────────────────────────────────────────
+    account_note = f", tài khoản '{payload.username}' ({payload.role})" if payload.username else ""
     await log_action(
-        action="create", 
-        resource_type="resident", 
-        resource_id=str(new_resident.id), 
-        description=f"Tạo cư dân [{new_resident.full_name}]", 
-        actor_id=actor["actor_id"], 
-        actor_username=actor["actor_username"], 
+        action="create",
+        resource_type="resident",
+        resource_id=str(new_resident.id),
+        description=f"Tạo cư dân [{new_resident.full_name}]{account_note}",
+        actor_id=actor["actor_id"],
+        actor_username=actor["actor_username"],
         actor_role=actor["actor_role"]
     )
-    return new_resident
+
+    # ─── Trả về kèm thông tin tài khoản (nếu có) ─────────────────────────────
+    result = new_resident.model_dump()
+    if created_account:
+        result["_generated_account"] = {
+            "username": created_account.username,
+            "role": created_account.role,
+            "password": raw_password if not payload.password else None,
+            "auto_generated_password": payload.password is None,
+        }
+    return result
 
 @router.patch("/residents/{resident_id}", response_model=Resident)
 async def update_resident(resident_id: PydanticObjectId, payload: ResidentUpdate, request: Request):

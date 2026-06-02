@@ -35,6 +35,7 @@ class MeterReadingItem(BaseModel):
     apartment_id: PydanticObjectId
     electricity_consumption: float = 0
     water_consumption: float = 0
+    donation_amount: float = 0
 
 class InvoiceLineItemCreate(BaseModel):
     fee_type: str
@@ -183,6 +184,7 @@ async def _internal_auto_generate_invoice(
     billing_period_year: int,
     elec_consumption: float = 0,
     water_consumption: float = 0,
+    donation_amount: float = 0,
     applied_fees: List[str] = ["management", "electricity", "water", "parking"]
 ) -> Invoice:
     """Logic cốt lõi để tính toán và tạo hóa đơn (dùng chung cho đơn lẻ và hàng loạt)."""
@@ -265,6 +267,27 @@ async def _internal_auto_generate_invoice(
                     amount=round(moto_count * moto_rate.unit_price, 2)
                 ))
 
+    # 4b. Charity/Donation fee (Dynamic amount from user input)
+    if "charity" in applied_fees and donation_amount > 0:
+        line_items.append(InvoiceLineItem(
+            fee_type="charity",
+            description="Ủng hộ thiện nguyện",
+            quantity=1,
+            unit_price=donation_amount,
+            amount=donation_amount
+        ))
+    elif "charity" in applied_fees:
+        # Fallback to fixed rate if no dynamic amount but fee is selected
+        charity_rate = await get_current_rate("charity")
+        if charity_rate and charity_rate.unit_price > 0:
+            line_items.append(InvoiceLineItem(
+                fee_type="charity",
+                description=charity_rate.description or "Ủng hộ thiện nguyện",
+                quantity=1,
+                unit_price=charity_rate.unit_price,
+                amount=charity_rate.unit_price
+            ))
+
     # 5. Previous debt
     prev_month = billing_period_month - 1 if billing_period_month > 1 else 12
     prev_year = billing_period_year if billing_period_month > 1 else billing_period_year - 1
@@ -340,6 +363,7 @@ async def bulk_generate_invoices(payload: BulkGeneratePayload, request: Request)
             payload.billing_period_year,
             item.electricity_consumption,
             item.water_consumption,
+            item.donation_amount,
             payload.applied_fees
         )
         if inv:
@@ -514,4 +538,4 @@ async def resident_pay_invoice(invoice_id: PydanticObjectId, payload: ResidentPa
     invoice.payment_method = payload.payment_method
     invoice.updated_at = datetime.utcnow()
     await invoice.save()
-    return invoice
+    return invoice

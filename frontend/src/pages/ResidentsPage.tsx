@@ -49,6 +49,9 @@ const emptyNewRes = {
   relationship: "tenant",
   cccd_front_base64: "",
   cccd_back_base64: "",
+  role: "resident",
+  username: "",
+  password: "",
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -95,11 +98,37 @@ export default function ResidentsPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await api.post("/residents", {
-        ...newRes,
+      const payload: any = {
+        full_name: newRes.full_name,
         date_of_birth: new Date(newRes.date_of_birth).toISOString(),
-      })
-      toast.success("Đăng ký cư dân thành công!")
+        identity_card: newRes.identity_card,
+        phone_number: newRes.phone_number,
+        email: newRes.email || undefined,
+        cccd_front_base64: newRes.cccd_front_base64 || undefined,
+        cccd_back_base64: newRes.cccd_back_base64 || undefined,
+        role: newRes.role,
+        username: newRes.username || undefined,
+        password: newRes.password || undefined,
+      }
+      // Chỉ gửi apartment_id + relationship khi role = resident
+      if (newRes.role === "resident") {
+        payload.apartment_id = newRes.apartment_id || undefined
+        payload.relationship = newRes.relationship
+      }
+
+      const res = await api.post("/residents", payload)
+
+      // Hiển thị mật khẩu tự sinh nếu có
+      const genAccount = res.data?._generated_account
+      if (genAccount?.auto_generated_password) {
+        toast.success(
+          `Đăng ký thành công! Tài khoản: ${genAccount.username} | Mật khẩu: ${genAccount.password}`,
+          { duration: 15000 }
+        )
+      } else {
+        toast.success("Đăng ký cư dân thành công!")
+      }
+
       setIsRegisterOpen(false)
       setNewRes({ ...emptyNewRes })
       fetchData()
@@ -314,12 +343,33 @@ export default function ResidentsPage() {
 
       {/* Register Resident Dialog */}
       <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px]">
           <form onSubmit={handleRegister}>
             <DialogHeader>
               <DialogTitle>Đăng ký Cư dân mới</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+              {/* Role selection */}
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-muted-foreground uppercase">
+                  Vai trò
+                </Label>
+                <Select
+                  value={newRes.role}
+                  onValueChange={(v) =>
+                    setNewRes({ ...newRes, role: v, apartment_id: "", relationship: "tenant" })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="resident">Cư dân</SelectItem>
+                    <SelectItem value="accountant">Kế toán</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-muted-foreground uppercase">
@@ -389,42 +439,81 @@ export default function ResidentsPage() {
                   placeholder="email@example.com"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase">
-                    Căn hộ
-                  </Label>
-                  <Combobox
-                    options={apartmentOptions}
-                    value={newRes.apartment_id}
-                    onValueChange={(v) =>
-                      setNewRes({ ...newRes, apartment_id: v })
-                    }
-                    placeholder="Tìm căn hộ..."
-                    searchPlaceholder="Nhập block hoặc số phòng..."
-                  />
+
+              {/* Apartment + Relationship — chỉ hiện khi role = resident */}
+              {newRes.role === "resident" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">
+                      Căn hộ
+                    </Label>
+                    <Combobox
+                      options={apartmentOptions}
+                      value={newRes.apartment_id}
+                      onValueChange={(v) =>
+                        setNewRes({ ...newRes, apartment_id: v })
+                      }
+                      placeholder="Tìm căn hộ..."
+                      searchPlaceholder="Nhập block hoặc số phòng..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">
+                      Quan hệ
+                    </Label>
+                    <Select
+                      value={newRes.relationship}
+                      onValueChange={(v) =>
+                        setNewRes({ ...newRes, relationship: v })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="owner">Chủ hộ</SelectItem>
+                        <SelectItem value="family">Người thân</SelectItem>
+                        <SelectItem value="tenant">Người thuê</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase">
-                    Quan hệ
-                  </Label>
-                  <Select
-                    value={newRes.relationship}
-                    onValueChange={(v) =>
-                      setNewRes({ ...newRes, relationship: v })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="owner">Chủ hộ</SelectItem>
-                      <SelectItem value="family">Người thân</SelectItem>
-                      <SelectItem value="tenant">Người thuê</SelectItem>
-                    </SelectContent>
-                  </Select>
+              )}
+
+              {/* Account fields */}
+              <div className="border-t pt-4 mt-2">
+                <h4 className="mb-3 text-xs font-bold text-muted-foreground uppercase">
+                  Tài khoản đăng nhập
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">
+                      Username
+                    </Label>
+                    <Input
+                      value={newRes.username}
+                      onChange={(e) =>
+                        setNewRes({ ...newRes, username: e.target.value })
+                      }
+                      placeholder="Để trống = không tạo tài khoản"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">
+                      Password
+                    </Label>
+                    <Input
+                      type="text"
+                      value={newRes.password}
+                      onChange={(e) =>
+                        setNewRes({ ...newRes, password: e.target.value })
+                      }
+                      placeholder="Để trống = tự động tạo"
+                    />
+                  </div>
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-muted-foreground uppercase">

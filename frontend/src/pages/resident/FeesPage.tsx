@@ -51,10 +51,10 @@ const FMT = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" 
 const fmt = (n: number) => FMT.format(n)
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-  pending:   { label: "Chưa thanh toán",     color: "bg-amber-100 text-amber-700 border-amber-200",     icon: Clock },
-  paid:      { label: "Đã thanh toán",        color: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: CheckCircle2 },
-  partial:   { label: "Thanh toán một phần",  color: "bg-blue-100 text-blue-700 border-blue-200",        icon: AlertTriangle },
-  cancelled: { label: "Đã hủy",              color: "bg-gray-100 text-gray-500 border-gray-200",        icon: XCircle },
+  pending: { label: "Chưa thanh toán", color: "bg-amber-100 text-amber-700 border-amber-200", icon: Clock },
+  paid: { label: "Đã thanh toán", color: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: CheckCircle2 },
+  partial: { label: "Thanh toán một phần", color: "bg-blue-100 text-blue-700 border-blue-200", icon: AlertTriangle },
+  cancelled: { label: "Đã hủy", color: "bg-gray-100 text-gray-500 border-gray-200", icon: XCircle },
 }
 
 const FEE_TYPE_LABELS: Record<string, string> = {
@@ -64,8 +64,8 @@ const FEE_TYPE_LABELS: Record<string, string> = {
 
 const PAYMENT_METHODS = [
   { value: "bank_transfer", label: "Chuyển khoản ngân hàng", icon: Building2 },
-  { value: "e_wallet",      label: "Ví điện tử (MoMo/ZaloPay)", icon: Wallet },
-  { value: "cash",          label: "Tiền mặt (tại quầy)", icon: Banknote },
+  { value: "e_wallet", label: "Ví điện tử (MoMo/ZaloPay)", icon: Wallet },
+  { value: "cash", label: "Tiền mặt (tại quầy)", icon: Banknote },
 ]
 
 // ─── InvoiceCard ─────────────────────────────────────────────────────────────
@@ -253,7 +253,7 @@ export default function FeesPage() {
   }
 
   const totalPending = invoices.filter(i => i.status === "pending").reduce((s, i) => s + i.amount_due, 0)
-  const totalPaid    = invoices.filter(i => i.status === "paid").reduce((s, i) => s + i.paid_amount, 0)
+  const totalPaid = invoices.filter(i => i.status === "paid").reduce((s, i) => s + i.paid_amount, 0)
   const overdueCount = invoices.filter(i => i.status === "pending" && new Date(i.due_date) < new Date()).length
 
   const FILTERS = [
@@ -301,11 +301,10 @@ export default function FeesPage() {
       <div className="flex gap-2 flex-wrap">
         {FILTERS.map(f => (
           <button key={f.value} onClick={() => setFilterStatus(f.value)}
-            className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-all ${
-              filterStatus === f.value
+            className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-all ${filterStatus === f.value
                 ? "bg-primary text-primary-foreground border-primary"
                 : "bg-background text-muted-foreground hover:text-foreground"
-            }`}>{f.label}</button>
+              }`}>{f.label}</button>
         ))}
       </div>
 
@@ -363,9 +362,8 @@ export default function FeesPage() {
                   const Icon = m.icon
                   return (
                     <button key={m.value} type="button" onClick={() => setPayMethod(m.value)}
-                      className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${
-                        payMethod === m.value ? "border-primary bg-primary/5" : "hover:border-muted-foreground/40"
-                      }`}>
+                      className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${payMethod === m.value ? "border-primary bg-primary/5" : "hover:border-muted-foreground/40"
+                        }`}>
                       <Icon className={`h-5 w-5 shrink-0 ${payMethod === m.value ? "text-primary" : "text-muted-foreground"}`} />
                       <span className={`text-sm font-medium ${payMethod === m.value ? "text-primary" : ""}`}>{m.label}</span>
                       {payMethod === m.value && <CheckCircle2 className="h-4 w-4 ml-auto text-primary" />}

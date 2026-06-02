@@ -16,6 +16,7 @@ const menuItems = [
   { title: "Phương tiện", icon: Car, path: "/dashboard/vehicles" },
   { title: "Ticket hỗ trợ", icon: Ticket, path: "/dashboard/tickets" },
   { title: "Thông báo", icon: Bell, path: "/dashboard/notifications" },
+  { title: "Duyệt nhân khẩu", icon: Users, path: "/dashboard/resident-requests" },
   { title: "Nhật ký hệ thống", icon: History, path: "/dashboard/audit-logs" },
   { title: "Quản lý tài khoản", icon: UserCog, path: "/dashboard/accounts" },
 ]
