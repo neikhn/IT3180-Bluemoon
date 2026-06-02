@@ -90,6 +90,7 @@ export default function AccountsPage() {
   const [resetTarget, setResetTarget] = useState<AccountItem | null>(null)
   const [resetLoading, setResetLoading] = useState(false)
   const [resetResult, setResetResult] = useState<{ password: string } | null>(null)
+  const [resetCustomPassword, setResetCustomPassword] = useState("")
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -175,7 +176,11 @@ export default function AccountsPage() {
     if (!resetTarget) return
     setResetLoading(true)
     try {
-      const res = await api.post(`/accounts/${resetTarget.id}/reset-password`)
+      const body: any = {}
+      if (resetCustomPassword.trim().length >= 6) {
+        body.new_password = resetCustomPassword.trim()
+      }
+      const res = await api.post(`/accounts/${resetTarget.id}/reset-password`, body)
       setResetResult({ password: res.data.new_password })
       toast.success("Đã reset mật khẩu thành công!")
     } catch (err: any) {
@@ -461,7 +466,7 @@ export default function AccountsPage() {
       </Dialog>
 
       {/* ── Reset Password Dialog ─────────────────────────────────────────── */}
-      <Dialog open={!!resetTarget} onOpenChange={v => { if (!v) { setResetTarget(null); setResetResult(null) } }}>
+      <Dialog open={!!resetTarget} onOpenChange={v => { if (!v) { setResetTarget(null); setResetResult(null); setResetCustomPassword("") } }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5 text-amber-500" /> Reset mật khẩu</DialogTitle>
@@ -476,17 +481,50 @@ export default function AccountsPage() {
                 </div>
                 <p className="text-xs text-amber-600 dark:text-amber-400 text-center font-medium">⚠️ Ghi lại ngay — sẽ không hiển thị lại.</p>
               </div>
-              <Button className="w-full" onClick={() => { setResetTarget(null); setResetResult(null) }}>Đóng</Button>
+              <Button className="w-full" onClick={() => { setResetTarget(null); setResetResult(null); setResetCustomPassword("") }}>Đóng</Button>
             </div>
           ) : (
             <div className="space-y-4 py-2">
               <p className="text-sm text-muted-foreground">
-                Bạn sắp reset mật khẩu cho tài khoản <span className="font-semibold font-mono">@{resetTarget?.username}</span> ({resetTarget?.full_name}).
-                Hệ thống sẽ sinh mật khẩu mới ngẫu nhiên.
+                Reset mật khẩu cho tài khoản <span className="font-semibold font-mono">@{resetTarget?.username}</span> ({resetTarget?.full_name}).
               </p>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setResetCustomPassword("")}
+                    className={`flex-1 rounded-lg border p-2.5 text-xs font-medium text-left transition-all ${!resetCustomPassword && resetCustomPassword === "" ? "border-primary bg-primary/5" : "hover:border-muted-foreground/40"}`}
+                  >
+                    🎲 Tự sinh ngẫu nhiên
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResetCustomPassword(" ")}
+                    className={`flex-1 rounded-lg border p-2.5 text-xs font-medium text-left transition-all ${resetCustomPassword.trim() !== "" || resetCustomPassword === " " ? "border-primary bg-primary/5" : "hover:border-muted-foreground/40"}`}
+                  >
+                    ✏️ Đặt thủ công
+                  </button>
+                </div>
+                {(resetCustomPassword === " " || resetCustomPassword.trim().length > 0) && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Mật khẩu mới (tối thiểu 6 ký tự)</Label>
+                    <Input
+                      type="text"
+                      value={resetCustomPassword.trim()}
+                      onChange={(e) => setResetCustomPassword(e.target.value || " ")}
+                      placeholder="Nhập mật khẩu mới..."
+                      className="font-mono"
+                    />
+                  </div>
+                )}
+              </div>
               <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setResetTarget(null)}>Hủy</Button>
-                <Button onClick={handleReset} disabled={resetLoading} className="gap-1.5 bg-amber-500 hover:bg-amber-600">
+                <Button variant="outline" onClick={() => { setResetTarget(null); setResetCustomPassword("") }}>Hủy</Button>
+                <Button
+                  onClick={handleReset}
+                  disabled={resetLoading || (resetCustomPassword.trim().length > 0 && resetCustomPassword.trim().length < 6)}
+                  className="gap-1.5 bg-amber-500 hover:bg-amber-600"
+                >
                   {resetLoading && <Loader2 className="h-4 w-4 animate-spin" />} Xác nhận reset
                 </Button>
               </DialogFooter>

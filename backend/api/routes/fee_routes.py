@@ -519,7 +519,7 @@ async def delete_invoice(invoice_id: PydanticObjectId):
     return {"message": "Đã xóa hóa đơn."}
 
 class ResidentPayPayload(BaseModel):
-    payment_method: str = "bank_transfer"  # 'bank_transfer', 'cash', 'e_wallet'
+    payment_method: str = "bank_transfer"  # 'bank_transfer', 'cash', 'e_wallet', 'international_card'
 
 @router.post("/invoices/{invoice_id}/pay", response_model=Invoice)
 async def resident_pay_invoice(invoice_id: PydanticObjectId, payload: ResidentPayPayload):

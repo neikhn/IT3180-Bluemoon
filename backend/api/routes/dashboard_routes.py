@@ -109,15 +109,27 @@ async def get_dashboard_stats():
         {"label": ">90 ngày", "value": round(overdue_90_plus, 0)},
     ]
 
-    # ── Ticket breakdown by category ──────────────────────────────────────────
+    # ── Ticket breakdown by category (only unprocessed) ─────────────────────────
+    TICKET_CATEGORY_LABELS = {
+        "vehicle_registration": "Đăng ký PT",
+        "household_change": "Nhân khẩu",
+        "technical": "Kỹ thuật",
+        "hygiene": "Vệ sinh",
+        "security": "An ninh",
+        "noise": "Tiếng ồn",
+        "other": "Khác",
+    }
     ticket_categories = {}
     for t in tickets:
+        if t.status not in ("open", "processing"):
+            continue
         cat = t.category or "other"
-        ticket_categories[cat] = ticket_categories.get(cat, 0) + 1
+        label = TICKET_CATEGORY_LABELS.get(cat, cat)
+        ticket_categories[label] = ticket_categories.get(label, 0) + 1
 
     ticket_by_category = [
-        {"name": cat.replace("_", " ").title(), "value": count}
-        for cat, count in sorted(ticket_categories.items(), key=lambda x: -x[1])
+        {"name": name, "value": count}
+        for name, count in sorted(ticket_categories.items(), key=lambda x: -x[1])
     ]
 
     return {
@@ -227,6 +239,8 @@ async def get_dashboard_charts(year: int = Query(default=datetime.utcnow().year)
     PM_LABELS = {
         "cash": "Tiền mặt",
         "bank_transfer": "Chuyển khoản",
+        "e_wallet": "Ví điện tử",
+        "international_card": "Thẻ quốc tế",
         "other": "Khác",
     }
     pm_map: dict[str, int] = {}

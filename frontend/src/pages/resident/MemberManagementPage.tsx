@@ -156,7 +156,7 @@ export default function MemberManagementPage() {
                   </div>
                   <div>
                     <p className="text-sm font-bold">{res.full_name}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase font-medium">{res.relationship}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-medium">{res.relationship === "owner" ? "Chủ hộ" : res.relationship === "family" ? "Người thân" : res.relationship === "tenant" ? "Người thuê" : res.relationship}</p>
                   </div>
                 </div>
                 {res.resident_id !== user?.resident_id && (

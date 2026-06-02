@@ -71,6 +71,7 @@ const STATUS_CONFIG: Record<
 
 const CATEGORY_LABELS: Record<string, string> = {
   vehicle_registration: "Đăng ký PT",
+  household_change: "Nhân khẩu",
   technical: "Kỹ thuật",
   hygiene: "Vệ sinh",
   security: "An ninh",
@@ -94,7 +95,7 @@ export default function ResidentTicketsPage() {
   const [disputeReason, setDisputeReason] = useState("")
 
   // Toggle closed/rejected tickets
-  const [showClosed, setShowClosed] = useState(true)
+  const [showClosed, setShowClosed] = useState(false)
 
   // Dynamic resident + apartment IDs
   const [resId, setResId] = useState<string | null>(null)
@@ -142,9 +143,18 @@ export default function ResidentTicketsPage() {
     fetchTickets()
   }, [])
 
+  const STATUS_PRIORITY: Record<string, number> = {
+    open: 0, processing: 1, pending_close: 2, closed: 3, rejected: 4
+  }
+
   const filteredTickets = useMemo(() => {
-    if (showClosed) return tickets
-    return tickets.filter(t => !["closed", "rejected"].includes(t.status))
+    const list = showClosed ? tickets : tickets.filter(t => !["closed", "rejected"].includes(t.status))
+    return [...list].sort((a, b) => {
+      const pa = STATUS_PRIORITY[a.status] ?? 99
+      const pb = STATUS_PRIORITY[b.status] ?? 99
+      if (pa !== pb) return pa - pb
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
   }, [tickets, showClosed])
 
   const closedCount = useMemo(

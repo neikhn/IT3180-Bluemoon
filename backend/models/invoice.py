@@ -29,7 +29,7 @@ class Invoice(Document):
     status: Indexed(str) = "pending"  # 'pending', 'paid', 'partial', 'cancelled'
     due_date: datetime
     paid_date: Optional[datetime] = None
-    payment_method: Optional[str] = None  # 'cash', 'bank_transfer', 'other'
+    payment_method: Optional[str] = None  # 'bank_transfer', 'cash', 'e_wallet', 'international_card'
     paid_amount: float = 0
 
     # Discount/adjustment

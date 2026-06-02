@@ -65,6 +65,7 @@ const FEE_TYPE_LABELS: Record<string, string> = {
 const PAYMENT_METHODS = [
   { value: "bank_transfer", label: "Chuyển khoản ngân hàng", icon: Building2 },
   { value: "e_wallet", label: "Ví điện tử (MoMo/ZaloPay)", icon: Wallet },
+  { value: "international_card", label: "Thẻ quốc tế (Visa/Master)", icon: CreditCard },
   { value: "cash", label: "Tiền mặt (tại quầy)", icon: Banknote },
 ]
 

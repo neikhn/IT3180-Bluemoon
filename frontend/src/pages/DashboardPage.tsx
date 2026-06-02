@@ -237,7 +237,7 @@ export default function DashboardPage() {
         {/* Ticket Category Breakdown */}
         <Card className="overflow-hidden border-0 shadow-lg">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Phân bổ Ticket theo loại</CardTitle>
+            <CardTitle className="text-sm font-medium">Ticket chưa xử lý theo loại</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (

@@ -235,6 +235,9 @@ async def update_account(
     await account.save()
     return {"id": str(account.id), "message": "Cập nhật thành công."}
 
+class ResetPasswordPayload(BaseModel):
+    new_password: Optional[str] = None  # If None, auto-generate
+
 class ResetPasswordResponse(BaseModel):
     message: str
     new_password: str
@@ -242,14 +245,21 @@ class ResetPasswordResponse(BaseModel):
 @router.post("/accounts/{account_id}/reset-password", response_model=ResetPasswordResponse)
 async def reset_password(
     account_id: PydanticObjectId,
+    payload: ResetPasswordPayload = ResetPasswordPayload(),
     current_user: dict = Security(require_role("admin"))
 ):
-    """Reset mật khẩu tài khoản — sinh mật khẩu mới ngẫu nhiên (Admin only)."""
+    """Reset mật khẩu tài khoản — tùy chọn đặt thủ công hoặc tự sinh (Admin only)."""
     account = await Account.get(account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Tài khoản không tồn tại.")
 
-    new_password = generate_password()
+    if payload.new_password:
+        if len(payload.new_password) < 6:
+            raise HTTPException(status_code=400, detail="Mật khẩu phải có tối thiểu 6 ký tự.")
+        new_password = payload.new_password
+    else:
+        new_password = generate_password()
+    
     account.password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
     account.login_attempts = 0
     account.locked_until = None

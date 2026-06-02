@@ -32,6 +32,13 @@ const FEE_ICON_MAP: Record<string, any> = {
   charity: Heart,
 }
 
+const PM_LABELS: Record<string, string> = {
+  bank_transfer: "Chuyển khoản",
+  cash: "Tiền mặt",
+  e_wallet: "Ví điện tử",
+  international_card: "Thẻ quốc tế",
+  other: "Khác",
+}
 
 function formatVND(n: number) {
   return new Intl.NumberFormat("vi-VN").format(n)
@@ -365,6 +372,7 @@ export default function InvoicesPage() {
                 <th className="p-4 text-right font-bold text-xs uppercase tracking-wider text-muted-foreground">Tổng tiền</th>
                 <th className="p-4 text-left font-bold text-xs uppercase tracking-wider text-muted-foreground">Hạn chót</th>
                 <th className="p-4 text-left font-bold text-xs uppercase tracking-wider text-muted-foreground">Trạng thái</th>
+                <th className="p-4 text-left font-bold text-xs uppercase tracking-wider text-muted-foreground">Phương thức TT</th>
                 <th className="p-4 text-center font-bold text-xs uppercase tracking-wider text-muted-foreground"></th>
               </tr>
             </thead>
@@ -372,14 +380,14 @@ export default function InvoicesPage() {
               {loading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i}>
-                    {[...Array(7)].map((__, j) => (
+                    {[...Array(8)].map((__, j) => (
                       <td key={j} className="p-4"><Skeleton className="h-4 w-full" /></td>
                     ))}
                   </tr>
                 ))
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-16 text-center text-muted-foreground text-sm italic">
+                  <td colSpan={8} className="p-16 text-center text-muted-foreground text-sm italic">
                     Chưa có hóa đơn nào được phát hành.
                   </td>
                 </tr>
@@ -399,6 +407,15 @@ export default function InvoicesPage() {
                         <Badge variant={cfg.variant as any} className="text-[10px] px-2 py-0.5 rounded-full font-bold">
                           {cfg.label}
                         </Badge>
+                      </td>
+                      <td className="p-4 text-xs">
+                        {inv.status === "paid" && inv.payment_method ? (
+                          <Badge variant="outline" className="text-[10px] px-2 py-0.5 rounded-full font-medium">
+                            {PM_LABELS[inv.payment_method] || inv.payment_method}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="p-4 text-center">
                         <Button
@@ -473,6 +490,16 @@ export default function InvoicesPage() {
                 <Button className="w-full font-bold h-12 rounded-lg text-sm" onClick={() => { handleMarkPaid(selected); setSelected(null) }}>
                   XÁC NHẬN ĐÃ THU TIỀN
                 </Button>
+              )}
+
+              {selected.status === "paid" && (
+                <div className="flex items-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span>
+                    Đã thanh toán{selected.paid_date && ` ngày ${new Date(selected.paid_date).toLocaleDateString("vi-VN")}`}
+                    {selected.payment_method && ` · ${PM_LABELS[selected.payment_method] || selected.payment_method}`}
+                  </span>
+                </div>
               )}
             </div>
           )}

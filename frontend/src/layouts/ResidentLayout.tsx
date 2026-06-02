@@ -1,10 +1,10 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
-import { Ticket, User, Bell, LogOut, Moon, Sun, Users, Receipt } from "lucide-react"
+import { Ticket, User, Bell, LogOut, Moon, Sun, Receipt } from "lucide-react"
 import { cn } from "../lib/utils"
 import { Button } from "../components/ui/button"
 import { useTheme } from "../components/theme-provider"
 import { clearAuth, getStoredUser, setStoredUser } from "../lib/auth"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { api } from "../lib/axios"
 import {
@@ -21,6 +21,7 @@ export default function ResidentLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
+  const [unreadCount, setUnreadCount] = useState(0)
 
   const handleLogout = () => {
     clearAuth()
@@ -39,6 +40,31 @@ export default function ResidentLayout() {
     confirmPassword: ""
   })
   const [loading, setLoading] = useState(false)
+
+  // Fetch unread notification count
+  useEffect(() => {
+    async function fetchUnread() {
+      try {
+        if (!user?.resident_id) return
+        const aptRes = await api.get("/apartments")
+        const apt = aptRes.data.find((a: any) =>
+          a.current_residents?.some(
+            (cr: any) => cr.resident_id === user.resident_id && cr.status === "living"
+          )
+        )
+        const notifRes = apt
+          ? await api.get(`/notifications/my-feed?apartment_id=${apt._id}`)
+          : await api.get("/notifications")
+        const unread = notifRes.data.filter(
+          (n: any) => !n.read_by?.includes(user.resident_id)
+        ).length
+        setUnreadCount(unread)
+      } catch {}
+    }
+    fetchUnread()
+    const interval = setInterval(fetchUnread, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -81,10 +107,8 @@ export default function ResidentLayout() {
 
   const navItems = [
     { name: "Thông báo", path: "/resident/feed", icon: Bell },
-    { name: "Hồ sơ", path: "/resident/profile", icon: User },
-    { name: "Thành viên", path: "/resident/members", icon: Users },
     { name: "Yêu cầu", path: "/resident/tickets", icon: Ticket },
-    { name: "Phí & HĐ", path: "/resident/fees", icon: Receipt },
+    { name: "Hóa đơn", path: "/resident/fees", icon: Receipt },
     { name: "Hồ sơ", path: "/resident/profile", icon: User },
   ]
 
@@ -129,9 +153,9 @@ export default function ResidentLayout() {
         <Outlet />
       </main>
 
-      {/* Bottom nav */}
+      {/* Bottom nav — 4 items */}
       <nav className="shrink-0 border-t border-border/50 bg-card/80 backdrop-blur-md">
-        <div className="flex h-[70px] items-center justify-around px-2">
+        <div className="flex h-[60px] items-center justify-around px-4">
           {navItems.map((item) => {
             const isActive = location.pathname.startsWith(item.path)
             return (
@@ -139,23 +163,27 @@ export default function ResidentLayout() {
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex h-full w-full flex-col items-center justify-center gap-1.5 transition-all duration-200",
+                  "relative flex h-full flex-col items-center justify-center gap-0.5 transition-all duration-200",
                   isActive
-                    ? "-translate-y-1 text-primary"
+                    ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <div
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200",
-                    isActive
-                      ? "bg-primary/10 shadow-lg shadow-primary/20"
-                      : "bg-muted/50"
+                    "flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200",
+                    isActive && "bg-primary/10 shadow-lg shadow-primary/20"
                   )}
                 >
-                  <item.icon className={cn("h-[22px] w-[22px]", isActive && "text-primary")} />
+                  <item.icon className={cn("h-[18px] w-[18px]", isActive && "text-primary")} />
+                  {/* Unread badge for Bell */}
+                  {item.icon === Bell && unreadCount > 0 && (
+                    <span className="absolute -top-0.5 right-1/2 translate-x-4 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground px-1">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
                 </div>
-                <span className="text-[11px] font-semibold tracking-wide">
+                <span className="text-[10px] font-semibold tracking-wide">
                   {item.name}
                 </span>
               </Link>
@@ -168,7 +196,6 @@ export default function ResidentLayout() {
       <Dialog open={showForcePasswordChange} onOpenChange={() => { }}>
         <DialogContent
           className="mx-auto w-[92vw] rounded-2xl p-5 sm:max-w-md"
-          showCloseButton={false}
           onPointerDownOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
