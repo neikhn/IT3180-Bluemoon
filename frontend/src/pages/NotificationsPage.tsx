@@ -35,6 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog"
+import { ImageDropZone } from "../components/ui/ImageDropZone"
 
 const SCOPE_LABELS: Record<string, string> = {
   all: "Toàn bộ",
@@ -52,6 +53,7 @@ export default function NotificationsPage() {
   const [content, setContent] = useState("")
   const [scope, setScope] = useState("all")
   const [targetVal, setTargetVal] = useState("")
+  const [imageBase64, setImageBase64] = useState("")
   const [selectedNotif, setSelectedNotif] = useState<any>(null)
   const ADMIN_ID = getStoredUser()?.id
 
@@ -76,6 +78,7 @@ export default function NotificationsPage() {
       await api.post("/notifications", {
         title,
         content,
+        image_base64: imageBase64,
         scope_type: scope,
         target_value: scope !== "all" ? targetVal : null,
         created_by: ADMIN_ID,
@@ -85,6 +88,7 @@ export default function NotificationsPage() {
       setContent("")
       setTargetVal("")
       setScope("all")
+      setImageBase64("")
       fetchNotifs()
     } catch (e) {
       console.error(e)
@@ -174,6 +178,10 @@ export default function NotificationsPage() {
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Kính gửi cư dân..."
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Ảnh đính kèm (Tùy chọn)</Label>
+                <ImageDropZone value={imageBase64} onChange={setImageBase64} label="Ảnh đính kèm" />
               </div>
               <Button type="submit" className="w-full font-bold">
                 Gửi thông báo
@@ -300,6 +308,11 @@ export default function NotificationsPage() {
           <div className="mt-4 text-sm leading-relaxed whitespace-pre-wrap break-words border rounded-lg p-4 bg-muted/20">
             {selectedNotif?.content}
           </div>
+          {selectedNotif?.image_base64 && (
+            <div className="mt-4">
+              <img src={selectedNotif.image_base64} alt="Notification attachment" className="w-full max-w-sm rounded-md border shadow-sm mx-auto" />
+            </div>
+          )}
           <div className="flex justify-end mt-4">
             <Button variant="outline" onClick={() => setSelectedNotif(null)}>Đóng</Button>
           </div>

@@ -162,10 +162,10 @@ export default function AuditLogsPage() {
                         <div className="flex flex-col">
                           <span className="flex items-center gap-1.5">
                             <Clock className="h-3 w-3 opacity-50" />
-                            {new Date(log.created_at).toLocaleDateString('vi-VN')}
+                            {new Date(log.created_at.endsWith('Z') ? log.created_at : `${log.created_at}Z`).toLocaleDateString('vi-VN')}
                           </span>
                           <span className="text-[10px] text-muted-foreground ml-4">
-                            {new Date(log.created_at).toLocaleTimeString('vi-VN')}
+                            {new Date(log.created_at.endsWith('Z') ? log.created_at : `${log.created_at}Z`).toLocaleTimeString('vi-VN')}
                           </span>
                         </div>
                       </TableCell>

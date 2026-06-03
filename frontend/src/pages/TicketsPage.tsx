@@ -622,6 +622,15 @@ export default function TicketsPage() {
               ) : (
                 <p className="rounded-lg border bg-muted/50 p-4 text-sm leading-relaxed">{selectedTicket?.description}</p>
               )}
+              {selectedTicket?.images_base64?.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedTicket.images_base64.map((img: string, i: number) => (
+                    <a key={i} href={img} target="_blank" rel="noreferrer" className="block max-w-full">
+                      <img src={img} alt={`Attached ${i + 1}`} className="max-h-[120px] rounded-md border shadow-sm transition-transform hover:scale-105" />
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">
@@ -651,7 +660,7 @@ export default function TicketsPage() {
             </div>
           </div>
 
-          {isActive && !isPendingClose && !isVehicleTicket ? (
+          {isActive && !isPendingClose && !isApprovable ? (
             <div className="flex shrink-0 gap-2 border-t bg-muted/10 p-4">
               <Input
                 value={replyText}

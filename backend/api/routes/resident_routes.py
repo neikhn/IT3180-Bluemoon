@@ -244,11 +244,15 @@ async def update_resident(resident_id: PydanticObjectId, payload: ResidentUpdate
             # Đồng bộ tên mới vào embedded data trong Apartment (bulk update)
             if "full_name" in update_data:
                 new_name = update_data["full_name"]
-                await Apartment.get_motor_collection().update_many(
-                    {"current_residents.resident_id": resident_id},
-                    {"$set": {"current_residents.$[elem].full_name": new_name}},
-                    array_filters=[{"elem.resident_id": resident_id}]
-                )
+                apts = await Apartment.find({"current_residents.resident_id": resident_id}).to_list()
+                for apt in apts:
+                    changed = False
+                    for res_info in apt.current_residents:
+                        if res_info.resident_id == resident_id:
+                            res_info.full_name = new_name
+                            changed = True
+                    if changed:
+                        await apt.save()
 
             await resident.save()
             actor = await get_actor_from_request(request)

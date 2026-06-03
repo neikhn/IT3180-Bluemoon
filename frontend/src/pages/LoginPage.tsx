@@ -115,22 +115,24 @@ export default function LoginPage() {
             </form>
 
             {/* Hint */}
-            <div className="mt-5 rounded-xl border bg-muted/50 p-4 text-center">
-              <p className="text-xs text-muted-foreground">
-                Seed Account:
+            <div className="mt-5 rounded-xl border bg-muted/50 p-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground text-center mb-3">
+                Tài khoản dùng thử
               </p>
-              <p className="text-xs text-muted-foreground">
-                <span className="font-mono font-bold text-foreground">admin</span> / <span className="font-mono font-bold text-foreground">admin123</span> → Admin
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                <span className="font-mono font-bold text-foreground">ketoan</span> / <span className="font-mono font-bold text-foreground">8M$njWBTf8t7</span> → Kế toán
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                <span className="font-mono font-bold text-foreground">resident1</span> / <span className="font-mono font-bold text-foreground">resident123</span> → Cư dân
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                <span className="font-mono font-bold text-foreground">resident2</span> / <span className="font-mono font-bold text-foreground">resident123</span> → Cư dân
-              </p>
+              <div className="flex flex-col gap-2">
+                <Button type="button" variant="outline" className="h-8 text-xs justify-between font-normal" onClick={() => { setUsername("admin"); setPassword("admin123") }}>
+                  <span>Admin</span> <span className="font-mono text-muted-foreground">admin / admin123</span>
+                </Button>
+                <Button type="button" variant="outline" className="h-8 text-xs justify-between font-normal" onClick={() => { setUsername("ketoan"); setPassword("ketoan123") }}>
+                  <span>Kế toán</span> <span className="font-mono text-muted-foreground">ketoan / ketoan123</span>
+                </Button>
+                <Button type="button" variant="outline" className="h-8 text-xs justify-between font-normal" onClick={() => { setUsername("resident1"); setPassword("resident123") }}>
+                  <span>Cư dân 1</span> <span className="font-mono text-muted-foreground">resident1 / resident123</span>
+                </Button>
+                <Button type="button" variant="outline" className="h-8 text-xs justify-between font-normal" onClick={() => { setUsername("resident2"); setPassword("resident123") }}>
+                  <span>Cư dân 2</span> <span className="font-mono text-muted-foreground">resident2 / resident123</span>
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

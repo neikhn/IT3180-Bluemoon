@@ -34,10 +34,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select"
-import { Plus, UserCog, History, Search, EyeOff, Eye, ArrowUpDown } from "lucide-react"
+import { Plus, UserCog, History, Search, EyeOff, Eye, ArrowUpDown, AlertCircle, Dices } from "lucide-react"
 import { ScrollArea } from "../components/ui/scroll-area"
 import { Combobox } from "../components/ui/combobox"
 import { extractErrorMessage } from "../lib/utils"
+import { ImageDropZone } from "../components/ui/ImageDropZone"
+
+const FieldError = ({ error }: { error?: string }) => {
+  if (!error) return null
+  return (
+    <div className="flex items-center gap-1.5 mt-1.5 text-xs font-medium text-destructive animate-in fade-in slide-in-from-top-1">
+      <AlertCircle className="h-3.5 w-3.5" /> {error}
+    </div>
+  )
+}
 
 const emptyNewRes = {
   full_name: "",
@@ -55,6 +65,7 @@ const emptyNewRes = {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  registered: "Thường trú",
   permanent: "Thường trú",
   temporary: "Tạm trú",
   temporary_absent: "Tạm vắng",
@@ -69,6 +80,7 @@ export default function ResidentsPage() {
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [editingResident, setEditingResident] = useState<any>(null)
   const [newRes, setNewRes] = useState({ ...emptyNewRes })
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
   // Search + sort + filter
   const [search, setSearch] = useState("")
@@ -95,20 +107,51 @@ export default function ResidentsPage() {
     fetchData()
   }, [])
 
+  const validateForm = () => {
+    const errs: Record<string, string> = {}
+    if (!newRes.full_name || newRes.full_name.trim().split(" ").length < 2) {
+      errs.full_name = "Vui lòng nhập đầy đủ họ và tên (ít nhất 2 từ)."
+    }
+    if (!newRes.date_of_birth) {
+      errs.date_of_birth = "Vui lòng chọn ngày sinh."
+    } else if (new Date(newRes.date_of_birth) > new Date()) {
+      errs.date_of_birth = "Ngày sinh không được lớn hơn ngày hiện tại."
+    }
+    if (!/^[0-9]{12}$/.test(newRes.identity_card)) {
+      errs.identity_card = "CCCD/CMND phải bao gồm đúng 12 chữ số."
+    }
+    if (!/^0[0-9]{9}$/.test(newRes.phone_number)) {
+      errs.phone_number = "Số điện thoại phải bắt đầu bằng số 0 và gồm đúng 10 chữ số."
+    }
+    if (newRes.role === "resident" && !newRes.apartment_id) {
+      errs.apartment_id = "Vui lòng chọn căn hộ cho cư dân."
+    }
+    // Tài khoản
+    if (!newRes.username?.trim()) {
+      errs.username = "Vui lòng nhập tên đăng nhập."
+    }
+    setFormErrors(errs)
+    return Object.keys(errs).length === 0
+  }
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validateForm()) {
+      toast.error("Vui lòng kiểm tra lại thông tin nhập.")
+      return
+    }
     try {
       const payload: any = {
-        full_name: newRes.full_name,
+        full_name: newRes.full_name.trim(),
         date_of_birth: new Date(newRes.date_of_birth).toISOString(),
-        identity_card: newRes.identity_card,
-        phone_number: newRes.phone_number,
+        identity_card: newRes.identity_card.trim(),
+        phone_number: newRes.phone_number.trim(),
         email: newRes.email || undefined,
         cccd_front_base64: newRes.cccd_front_base64 || undefined,
         cccd_back_base64: newRes.cccd_back_base64 || undefined,
         role: newRes.role,
-        username: newRes.username || undefined,
-        password: newRes.password || undefined,
+        username: newRes.username?.trim() || undefined,
+        password: newRes.password?.trim() || undefined,
       }
       // Chỉ gửi apartment_id + relationship khi role = resident
       if (newRes.role === "resident") {
@@ -131,10 +174,16 @@ export default function ResidentsPage() {
 
       setIsRegisterOpen(false)
       setNewRes({ ...emptyNewRes })
+      setFormErrors({})
       fetchData()
     } catch (err: any) {
       toast.error(extractErrorMessage(err, "Lỗi đăng ký cư dân."))
     }
+  }
+
+  const handleGeneratePassword = () => {
+    const randomPass = Math.random().toString(36).slice(-8) + "X1!"
+    setNewRes({ ...newRes, password: randomPass })
   }
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -145,6 +194,8 @@ export default function ResidentsPage() {
         phone_number: editingResident.phone_number,
         email: editingResident.email,
         temporary_residence_status: editingResident.temporary_residence_status,
+        cccd_front_base64: editingResident.cccd_front_base64,
+        cccd_back_base64: editingResident.cccd_back_base64,
       })
       toast.success("Cập nhật hồ sơ cư dân thành công!")
       setIsEditOpen(false)
@@ -378,11 +429,13 @@ export default function ResidentsPage() {
                   <Input
                     required
                     value={newRes.full_name}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewRes({ ...newRes, full_name: e.target.value })
-                    }
+                      setFormErrors(prev => ({ ...prev, full_name: "" }))
+                    }}
                     placeholder="Nguyễn Văn A"
                   />
+                  <FieldError error={formErrors.full_name} />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-muted-foreground uppercase">
@@ -392,10 +445,12 @@ export default function ResidentsPage() {
                     type="date"
                     required
                     value={newRes.date_of_birth}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewRes({ ...newRes, date_of_birth: e.target.value })
-                    }
+                      setFormErrors(prev => ({ ...prev, date_of_birth: "" }))
+                    }}
                   />
+                  <FieldError error={formErrors.date_of_birth} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -406,11 +461,13 @@ export default function ResidentsPage() {
                   <Input
                     required
                     value={newRes.identity_card}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewRes({ ...newRes, identity_card: e.target.value })
-                    }
+                      setFormErrors(prev => ({ ...prev, identity_card: "" }))
+                    }}
                     placeholder="079XXXXXXXXX"
                   />
+                  <FieldError error={formErrors.identity_card} />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-muted-foreground uppercase">
@@ -419,11 +476,13 @@ export default function ResidentsPage() {
                   <Input
                     required
                     value={newRes.phone_number}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewRes({ ...newRes, phone_number: e.target.value })
-                    }
+                      setFormErrors(prev => ({ ...prev, phone_number: "" }))
+                    }}
                     placeholder="0912345678"
                   />
+                  <FieldError error={formErrors.phone_number} />
                 </div>
               </div>
               <div className="space-y-2">
@@ -450,12 +509,14 @@ export default function ResidentsPage() {
                     <Combobox
                       options={apartmentOptions}
                       value={newRes.apartment_id}
-                      onValueChange={(v) =>
+                      onValueChange={(v) => {
                         setNewRes({ ...newRes, apartment_id: v })
-                      }
+                        setFormErrors(prev => ({ ...prev, apartment_id: "" }))
+                      }}
                       placeholder="Tìm căn hộ..."
                       searchPlaceholder="Nhập block hoặc số phòng..."
                     />
+                    <FieldError error={formErrors.apartment_id} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-bold text-muted-foreground uppercase">
@@ -492,24 +553,39 @@ export default function ResidentsPage() {
                     </Label>
                     <Input
                       value={newRes.username}
-                      onChange={(e) =>
+                      required
+                      onChange={(e) => {
                         setNewRes({ ...newRes, username: e.target.value })
-                      }
-                      placeholder="Để trống = không tạo tài khoản"
+                        setFormErrors(prev => ({ ...prev, username: "" }))
+                      }}
+                      placeholder="Tên đăng nhập"
                     />
+                    <FieldError error={formErrors.username} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-bold text-muted-foreground uppercase">
                       Password
                     </Label>
-                    <Input
-                      type="text"
-                      value={newRes.password}
-                      onChange={(e) =>
-                        setNewRes({ ...newRes, password: e.target.value })
-                      }
-                      placeholder="Để trống = tự động tạo"
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        value={newRes.password}
+                        onChange={(e) =>
+                          setNewRes({ ...newRes, password: e.target.value })
+                        }
+                        placeholder="Để trống = tự động tạo"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={handleGeneratePassword}
+                        title="Sinh ngẫu nhiên"
+                      >
+                        <Dices className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -519,32 +595,20 @@ export default function ResidentsPage() {
                   <Label className="text-xs font-bold text-muted-foreground uppercase">
                     Ảnh CCCD mặt trước
                   </Label>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file)
-                        readFileAsBase64(file, (b64) =>
-                          setNewRes({ ...newRes, cccd_front_base64: b64 })
-                        )
-                    }}
+                  <ImageDropZone
+                    value={newRes.cccd_front_base64}
+                    onChange={(val) => setNewRes({ ...newRes, cccd_front_base64: val })}
+                    label="Mặt trước CCCD"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-muted-foreground uppercase">
                     Ảnh CCCD mặt sau
                   </Label>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file)
-                        readFileAsBase64(file, (b64) =>
-                          setNewRes({ ...newRes, cccd_back_base64: b64 })
-                        )
-                    }}
+                  <ImageDropZone
+                    value={newRes.cccd_back_base64}
+                    onChange={(val) => setNewRes({ ...newRes, cccd_back_base64: val })}
+                    label="Mặt sau CCCD"
                   />
                 </div>
               </div>
@@ -567,21 +631,21 @@ export default function ResidentsPage() {
                 <DialogTitle>Cập nhật Thông tin Cư dân</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase">
-                    Họ và tên
-                  </Label>
-                  <Input
-                    value={editingResident.full_name}
-                    onChange={(e) =>
-                      setEditingResident({
-                        ...editingResident,
-                        full_name: e.target.value,
-                      })
-                    }
-                  />
-                </div>
                 <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">
+                      Họ và tên
+                    </Label>
+                    <Input
+                      value={editingResident.full_name}
+                      onChange={(e) =>
+                        setEditingResident({
+                          ...editingResident,
+                          full_name: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-bold text-muted-foreground uppercase">
                       Số điện thoại
@@ -596,6 +660,28 @@ export default function ResidentsPage() {
                       }
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">
+                      CCCD/CMND
+                    </Label>
+                    <Input value={editingResident.identity_card} disabled className="bg-muted/50" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">
+                      Ngày sinh
+                    </Label>
+                    <Input
+                      type="date"
+                      value={editingResident.date_of_birth ? new Date(editingResident.date_of_birth).toISOString().split('T')[0] : ""}
+                      disabled
+                      className="bg-muted/50"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs font-bold text-muted-foreground uppercase">
                       Trạng thái cư trú
@@ -613,7 +699,8 @@ export default function ResidentsPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="permanent">Thường trú</SelectItem>
+                        <SelectItem value="registered">Thường trú</SelectItem>
+                        <SelectItem value="permanent">Thường trú (cũ)</SelectItem>
                         <SelectItem value="temporary">Tạm trú</SelectItem>
                         <SelectItem value="temporary_absent">Tạm vắng</SelectItem>
                       </SelectContent>
@@ -634,6 +721,29 @@ export default function ResidentsPage() {
                       })
                     }
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">
+                      Ảnh CCCD mặt trước
+                    </Label>
+                    <ImageDropZone
+                      value={editingResident.cccd_front_base64}
+                      onChange={(val) => setEditingResident({ ...editingResident, cccd_front_base64: val })}
+                      label="Cập nhật CCCD mặt trước"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">
+                      Ảnh CCCD mặt sau
+                    </Label>
+                    <ImageDropZone
+                      value={editingResident.cccd_back_base64}
+                      onChange={(val) => setEditingResident({ ...editingResident, cccd_back_base64: val })}
+                      label="Cập nhật CCCD mặt sau"
+                    />
+                  </div>
                 </div>
 
                 {editingResident.change_history?.length > 0 && (

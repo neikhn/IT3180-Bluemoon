@@ -72,11 +72,10 @@ const PAYMENT_METHODS = [
 // ─── InvoiceCard ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_CONFIG[status] ?? { label: status, color: "bg-muted text-muted-foreground border-border", icon: Clock }
-  const Icon = cfg.icon
+  const cfg = STATUS_CONFIG[status] ?? { label: status, color: "bg-muted text-muted-foreground border-border" }
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-0.5 text-xs font-semibold ${cfg.color}`}>
-      <Icon className="h-3 w-3" /> {cfg.label}
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold ${cfg.color}`}>
+      {cfg.label}
     </span>
   )
 }
@@ -89,21 +88,19 @@ function InvoiceCard({ invoice, onPay }: { invoice: Invoice; onPay: (inv: Invoic
     <div className={`rounded-2xl border transition-all ${isOverdue ? "border-red-200 bg-red-50/30 dark:border-red-900/50" : "bg-card hover:shadow-md"}`}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4">
-        <div className="flex items-center gap-3">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${invoice.status === "paid" ? "bg-emerald-100 text-emerald-600" : "bg-primary/10 text-primary"}`}>
-            <Receipt className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-sm font-bold text-primary">{invoice.invoice_code}</span>
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono text-sm font-bold text-primary">{invoice.invoice_code}</span>
+            {isOverdue ? (
+              <span className="text-[10px] font-bold text-red-600 bg-red-100 border border-red-200 rounded-full px-2 py-0.5 uppercase tracking-wide">Quá hạn!</span>
+            ) : (
               <StatusBadge status={invoice.status} />
-              {isOverdue && <span className="text-[10px] font-bold text-red-600 bg-red-100 border border-red-200 rounded-full px-2 py-0.5 uppercase tracking-wide">Quá hạn!</span>}
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Kỳ {invoice.billing_period_month}/{invoice.billing_period_year}
-              {" · "}Hạn: {new Date(invoice.due_date).toLocaleDateString("vi-VN")}
-            </p>
+            )}
           </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Kỳ {invoice.billing_period_month}/{invoice.billing_period_year}
+            {" · "}Hạn: {new Date(invoice.due_date).toLocaleDateString("vi-VN")}
+          </p>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
@@ -115,8 +112,8 @@ function InvoiceCard({ invoice, onPay }: { invoice: Invoice; onPay: (inv: Invoic
           </div>
           <div className="flex flex-col gap-1">
             {(invoice.status === "pending" || invoice.status === "partial") && (
-              <Button size="sm" onClick={() => onPay(invoice)} className="h-8 gap-1.5 text-xs">
-                <CreditCard className="h-3.5 w-3.5" /> Đóng tiền
+              <Button size="sm" onClick={() => onPay(invoice)} className="h-8 text-xs font-bold px-4">
+                Đóng tiền
               </Button>
             )}
             <Button size="sm" variant="ghost" onClick={() => setExpanded(v => !v)} className="h-7 gap-1 text-xs text-muted-foreground">
@@ -270,15 +267,13 @@ export default function FeesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Receipt className="h-6 w-6 text-primary" /> Hóa đơn &amp; Thanh toán
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <h1 className="text-xl font-bold tracking-tight">Hóa đơn &amp; Thanh toán</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
             {apartmentInfo ? `Căn hộ ${apartmentInfo.block}-${apartmentInfo.apartment_number}` : "Các khoản phí liên quan đến căn hộ"}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchInvoices} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} /> Làm mới
+        <Button variant="outline" size="sm" onClick={fetchInvoices} disabled={loading} className="text-xs h-8">
+          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} /> Làm mới
         </Button>
       </div>
 

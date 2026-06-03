@@ -14,6 +14,7 @@ class NotificationCreate(BaseModel):
     content: str
     scope_type: str = "all" # 'all', 'block', 'floor', 'apartment'
     target_value: Optional[str] = None
+    image_base64: Optional[str] = None
 
 @router.post("/notifications", response_model=Notification, status_code=201)
 async def create_notification(payload: NotificationCreate, request: Request):
@@ -30,6 +31,7 @@ async def create_notification(payload: NotificationCreate, request: Request):
     new_notif = Notification(
         title=payload.title,
         content=payload.content,
+        image_base64=payload.image_base64,
         scope_type=payload.scope_type,
         target_value=payload.target_value,
         created_by=PydanticObjectId(actor["actor_id"]) if actor.get("actor_id") else None

@@ -254,6 +254,11 @@ const isRead = (n: any) => resId && n.read_by?.includes(resId)
                 __html: selectedNotif ? renderContent(selectedNotif.content) : "" 
               }}
             />
+            {selectedNotif?.image_base64 && (
+              <div className="mt-4">
+                <img src={selectedNotif.image_base64} alt="Notification attachment" className="w-full max-w-sm rounded-md border shadow-sm" />
+              </div>
+            )}
           </div>
           <div className="border-t bg-muted/20 p-4 flex justify-end">
             <Button variant="secondary" onClick={() => setSelectedNotif(null)}>Đóng</Button>

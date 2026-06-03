@@ -12,6 +12,7 @@ class ChangeHistory(BaseModel):
 class Notification(Document):
     title: str
     content: str # Hỗ trợ Rich Text HTML/Markdown
+    image_base64: Optional[str] = None
     
     # Phạm vi điều hướng: 'all', 'block', 'floor', 'apartment'
     scope_type: str = "all"

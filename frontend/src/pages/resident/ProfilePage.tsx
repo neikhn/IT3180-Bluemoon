@@ -30,6 +30,7 @@ import {
 import { AlertCircle, Save, Users, Building2, Car, Bike, Plus, Loader2, User, UserPlus, UserMinus } from "lucide-react"
 import { getStoredUser } from "../../lib/auth"
 import { extractErrorMessage } from "../../lib/utils"
+import { ImageDropZone } from "../../components/ui/ImageDropZone"
 
 const STATUS_LABELS: Record<string, string> = {
   permanent: "Thường trú",
@@ -73,8 +74,9 @@ export default function ProfilePage() {
   const [memberAction, setMemberAction] = useState<"add" | "remove">("add")
   const [memberForm, setMemberForm] = useState({
     full_name: "", identity_card: "", phone_number: "", date_of_birth: "",
-    relationship: "family", email: "",
+    relationship: "family", email: "", cccd_front_base64: "", cccd_back_base64: ""
   })
+  const [memberErrors, setMemberErrors] = useState<Record<string, string>>({})
   const [removeMemberId, setRemoveMemberId] = useState("")
 
   const user = getStoredUser()
@@ -158,6 +160,27 @@ export default function ProfilePage() {
   const handleMemberRequest = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user?.resident_id || !myApt) return
+    
+    if (memberAction === "add") {
+      const errs: Record<string, string> = {}
+      if (!memberForm.full_name || memberForm.full_name.trim().split(" ").length < 2) {
+        errs.full_name = "Vui lòng nhập đầy đủ họ tên (ít nhất 2 từ)."
+      }
+      if (!/^[0-9]{12}$/.test(memberForm.identity_card)) {
+        errs.identity_card = "CCCD/CMND phải đúng 12 chữ số."
+      }
+      if (!/^0[0-9]{9}$/.test(memberForm.phone_number)) {
+        errs.phone_number = "Số điện thoại không hợp lệ."
+      }
+      if (!memberForm.date_of_birth) {
+        errs.date_of_birth = "Vui lòng chọn ngày sinh."
+      } else if (new Date(memberForm.date_of_birth) > new Date()) {
+        errs.date_of_birth = "Ngày sinh không hợp lệ."
+      }
+      setMemberErrors(errs)
+      if (Object.keys(errs).length > 0) return
+    }
+
     try {
       if (memberAction === "add") {
         await api.post("/resident-requests", {
@@ -182,7 +205,8 @@ export default function ProfilePage() {
         toast.success("Đã gửi yêu cầu xóa thành viên!")
       }
       setIsMemberDialogOpen(false)
-      setMemberForm({ full_name: "", identity_card: "", phone_number: "", date_of_birth: "", relationship: "family", email: "" })
+      setMemberForm({ full_name: "", identity_card: "", phone_number: "", date_of_birth: "", relationship: "family", email: "", cccd_front_base64: "", cccd_back_base64: "" })
+      setMemberErrors({})
       setRemoveMemberId("")
     } catch (err: any) {
       toast.error(extractErrorMessage(err, "Lỗi gửi yêu cầu."))
@@ -448,11 +472,33 @@ export default function ProfilePage() {
           <form onSubmit={handleMemberRequest} className="space-y-4 pt-2" noValidate>
             {memberAction === "add" ? (
               <>
-                <div className="space-y-1"><Label className="text-xs font-bold text-muted-foreground uppercase">Họ tên</Label><Input required value={memberForm.full_name} onChange={(e) => setMemberForm({ ...memberForm, full_name: e.target.value })} placeholder="Nguyễn Văn A" /></div>
-                <div className="space-y-1"><Label className="text-xs font-bold text-muted-foreground uppercase">CCCD</Label><Input required value={memberForm.identity_card} onChange={(e) => setMemberForm({ ...memberForm, identity_card: e.target.value })} placeholder="001234567890" className="font-mono" /></div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase">Họ tên</Label>
+                  <Input required value={memberForm.full_name} onChange={(e) => { setMemberForm({ ...memberForm, full_name: e.target.value }); setMemberErrors(p => ({ ...p, full_name: "" })) }} placeholder="Nguyễn Văn A" className={memberErrors.full_name ? "border-destructive" : ""} />
+                  <FieldError msg={memberErrors.full_name} />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1"><Label className="text-xs font-bold text-muted-foreground uppercase">SĐT</Label><Input value={memberForm.phone_number} onChange={(e) => setMemberForm({ ...memberForm, phone_number: e.target.value })} placeholder="0912345678" /></div>
-                  <div className="space-y-1"><Label className="text-xs font-bold text-muted-foreground uppercase">Ngày sinh</Label><Input type="date" value={memberForm.date_of_birth} onChange={(e) => setMemberForm({ ...memberForm, date_of_birth: e.target.value })} /></div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">CCCD</Label>
+                    <Input required value={memberForm.identity_card} onChange={(e) => { setMemberForm({ ...memberForm, identity_card: e.target.value }); setMemberErrors(p => ({ ...p, identity_card: "" })) }} placeholder="079XXXXXXXXX" className={`font-mono ${memberErrors.identity_card ? "border-destructive" : ""}`} />
+                    <FieldError msg={memberErrors.identity_card} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">SĐT</Label>
+                    <Input required value={memberForm.phone_number} onChange={(e) => { setMemberForm({ ...memberForm, phone_number: e.target.value }); setMemberErrors(p => ({ ...p, phone_number: "" })) }} placeholder="0912345678" className={memberErrors.phone_number ? "border-destructive" : ""} />
+                    <FieldError msg={memberErrors.phone_number} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">Ngày sinh</Label>
+                    <Input type="date" required value={memberForm.date_of_birth} onChange={(e) => { setMemberForm({ ...memberForm, date_of_birth: e.target.value }); setMemberErrors(p => ({ ...p, date_of_birth: "" })) }} className={memberErrors.date_of_birth ? "border-destructive" : ""} />
+                    <FieldError msg={memberErrors.date_of_birth} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">Email</Label>
+                    <Input type="email" value={memberForm.email} onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })} placeholder="email@example.com" />
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs font-bold text-muted-foreground uppercase">Quan hệ</Label>
@@ -460,6 +506,16 @@ export default function ProfilePage() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent><SelectItem value="family">Người thân</SelectItem><SelectItem value="tenant">Người thuê</SelectItem></SelectContent>
                   </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">CCCD Mặt trước</Label>
+                    <ImageDropZone value={memberForm.cccd_front_base64} onChange={(v) => setMemberForm({ ...memberForm, cccd_front_base64: v })} label="Ảnh mặt trước" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">CCCD Mặt sau</Label>
+                    <ImageDropZone value={memberForm.cccd_back_base64} onChange={(v) => setMemberForm({ ...memberForm, cccd_back_base64: v })} label="Ảnh mặt sau" />
+                  </div>
                 </div>
               </>
             ) : (

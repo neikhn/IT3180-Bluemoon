@@ -22,6 +22,7 @@ import {
 } from "../../components/ui/select"
 import { extractErrorMessage } from "../../lib/utils"
 import { getStoredUser } from "../../lib/auth"
+import { MultiImageDropZone } from "../../components/ui/ImageDropZone"
 import {
   MessageSquarePlus,
   Clock,
@@ -89,6 +90,7 @@ export default function ResidentTicketsPage() {
   const [title, setTitle] = useState("")
   const [desc, setDesc] = useState("")
   const [category, setCategory] = useState("technical")
+  const [imagesBase64, setImagesBase64] = useState<string[]>([])
 
   // Dispute dialog
   const [isDisputeOpen, setIsDisputeOpen] = useState(false)
@@ -179,12 +181,14 @@ export default function ResidentTicketsPage() {
         category,
         title,
         description: desc,
+        images_base64: imagesBase64,
       })
       toast.success("Đã gửi yêu cầu thành công!")
       setOpenNew(false)
       setTitle("")
       setDesc("")
       setCategory("technical")
+      setImagesBase64([])
       fetchTickets()
     } catch (err: any) {
       toast.error(extractErrorMessage(err, "Lỗi gửi ticket."))
@@ -398,6 +402,15 @@ export default function ResidentTicketsPage() {
                 onChange={(e) => setDesc(e.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                Ảnh đính kèm (Tùy chọn, tối đa 3 ảnh)
+              </Label>
+              <MultiImageDropZone
+                values={imagesBase64}
+                onChange={setImagesBase64}
+              />
+            </div>
             <Button type="submit" className="h-11 w-full font-bold">
               Gửi yêu cầu
             </Button>
@@ -495,6 +508,15 @@ export default function ResidentTicketsPage() {
                   ? "Yêu cầu đăng ký phương tiện (chờ admin duyệt)"
                   : selectedTicket?.description}
               </p>
+              {selectedTicket?.images_base64?.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedTicket.images_base64.map((img: string, i: number) => (
+                    <a key={i} href={img} target="_blank" rel="noreferrer" className="block max-w-full">
+                      <img src={img} alt={`Attached ${i + 1}`} className="max-h-[120px] rounded-md border shadow-sm transition-transform hover:scale-105" />
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Messages */}

@@ -178,7 +178,7 @@ export default function ResidentLayout() {
                   <item.icon className={cn("h-[18px] w-[18px]", isActive && "text-primary")} />
                   {/* Unread badge for Bell */}
                   {item.icon === Bell && unreadCount > 0 && (
-                    <span className="absolute -top-0.5 right-1/2 translate-x-4 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground px-1">
+                    <span className="absolute -top-0.5 right-1/2 translate-x-4 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground px-1">
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
