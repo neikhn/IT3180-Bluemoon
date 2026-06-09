@@ -205,11 +205,7 @@ export default function ResidentsPage() {
     }
   }
 
-  const readFileAsBase64 = (file: File, callback: (result: string) => void) => {
-    const reader = new FileReader()
-    reader.onload = () => callback(reader.result as string)
-    reader.readAsDataURL(file)
-  }
+
 
   const getApartmentForResident = (resId: string) => {
     const matched = apartments.find((apt) =>

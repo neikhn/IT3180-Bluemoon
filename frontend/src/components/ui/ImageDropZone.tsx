@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from "react"
-import { UploadCloud, X, Image as ImageIcon } from "lucide-react"
+import { UploadCloud, X } from "lucide-react"
 
 interface ImageDropZoneProps {
   value?: string

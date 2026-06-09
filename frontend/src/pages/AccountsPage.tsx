@@ -191,7 +191,6 @@ export default function AccountsPage() {
   }
 
   const handleToggleStatus = async (account: AccountItem) => {
-    const action = account.status === "active" ? "delete" : "restore"
     const msg = account.status === "active" ? "Vô hiệu hóa" : "Khôi phục"
     try {
       if (account.status === "active") {

@@ -19,7 +19,6 @@ import VehiclesPage from "./pages/VehiclesPage"
 import TicketsPage from "./pages/TicketsPage"
 import NotificationsPage from "./pages/NotificationsPage"
 import AuditLogsPage from "./pages/AuditLogsPage"
-import ResidentRequestsPage from "./pages/ResidentRequestsPage"
 import AccountsPage from "./pages/AccountsPage"
 
 // Accountant Pages

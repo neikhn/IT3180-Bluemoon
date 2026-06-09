@@ -32,11 +32,7 @@ const VEHICLE_TYPE_LABELS: Record<string, string> = {
   car: "Ô tô",
 }
 
-const RELATIONSHIP_LABELS: Record<string, string> = {
-  owner: "Chủ hộ",
-  family: "Người thân",
-  tenant: "Người thuê",
-}
+
 
 export default function VehiclesPage() {
   const [loading, setLoading] = useState(true)
